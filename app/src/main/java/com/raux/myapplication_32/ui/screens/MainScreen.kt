@@ -100,10 +100,11 @@ fun MainScreen(
                             val symbols = colorState.symbols
                             when (symbols) {
                                 is SymbolPaint.Solid -> symbols.color
-                                is SymbolPaint.Gradient -> symbols.start
+                                is SymbolPaint.Gradient -> Color.Unspecified // Специальный маркер для градиента
                             }
                         },
                         fontSize = asciiFontSize,
+                        colorState = colorState, // Передаем ColorState для градиента
                         // Кнопки камеры
                         cameraFacing = cameraFacing,
                         captureState = captureState,
@@ -176,10 +177,11 @@ private fun MainScreenContent(
                         backgroundColor = colorState.background,
                         textColor = when (val symbols = colorState.symbols) {
                             is SymbolPaint.Solid -> symbols.color
-                            is SymbolPaint.Gradient -> symbols.start
+                            is SymbolPaint.Gradient -> Color.Unspecified // Специальный маркер для градиента
                         },
                         fontSize = asciiFontSize,
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier.fillMaxSize(),
+                        colorState = colorState // Передаем ColorState для градиента
                     )
                 } else {
                     // Показываем загрузку
@@ -235,7 +237,8 @@ fun ASCIIPreview(
     backgroundColor: Color,
     textColor: Color,
     fontSize: Float = 16f,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    colorState: ColorState? = null // Добавляем ColorState для градиента
 ) {
     Box(
         modifier = modifier
@@ -243,15 +246,66 @@ fun ASCIIPreview(
             .background(backgroundColor),
         contentAlignment = Alignment.Center
     ) {
-        Text(
-            text = asciiText, // Убрали ограничение длины текста
-            color = textColor,
-            fontFamily = FontFamily.Monospace,
-            fontSize = fontSize.sp, // Используем динамический размер шрифта
-            textAlign = TextAlign.Center,
-            lineHeight = (fontSize * 1.1f).sp, // Более плотная высота строки
-            maxLines = Int.MAX_VALUE // Убрали ограничение количества строк
-        )
+        // Если textColor - это градиент, используем специальную версию
+        if (textColor == Color.Unspecified && colorState != null) {
+            // Это означает, что нужно использовать градиент
+            ASCIIPreviewWithGradient(
+                asciiText = asciiText,
+                fontSize = fontSize,
+                colorState = colorState
+            )
+        } else {
+            // Обычный сплошной цвет
+            Text(
+                text = asciiText,
+                color = textColor,
+                fontFamily = FontFamily.Monospace,
+                fontSize = fontSize.sp,
+                textAlign = TextAlign.Start,
+                lineHeight = (fontSize * 1.1f).sp,
+                maxLines = Int.MAX_VALUE
+            )
+        }
+    }
+}
+
+@Composable
+private fun ASCIIPreviewWithGradient(
+    asciiText: String,
+    fontSize: Float,
+    colorState: ColorState
+) {
+    val lines = asciiText.split("\n")
+    val totalLines = lines.size
+    
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.Center
+    ) {
+        lines.forEachIndexed { index, line ->
+            // Вычисляем цвет для этой строки в градиенте
+            val progress = if (totalLines > 1) index.toFloat() / (totalLines - 1) else 0f
+            
+            val lineColor = when (val symbols = colorState.symbols) {
+                is SymbolPaint.Solid -> symbols.color
+                is SymbolPaint.Gradient -> {
+                    Color(
+                        red = symbols.start.red + (symbols.end.red - symbols.start.red) * progress,
+                        green = symbols.start.green + (symbols.end.green - symbols.start.green) * progress,
+                        blue = symbols.start.blue + (symbols.end.blue - symbols.start.blue) * progress
+                    )
+                }
+            }
+            
+            Text(
+                text = line,
+                color = lineColor,
+                fontFamily = FontFamily.Monospace,
+                fontSize = fontSize.sp,
+                textAlign = TextAlign.Start,
+                lineHeight = (fontSize * 1.1f).sp
+            )
+        }
     }
 }
 

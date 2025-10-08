@@ -9,6 +9,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.raux.myapplication_32.ui.components.CameraPermissionHandler
 import com.raux.myapplication_32.ui.screens.MainScreen
@@ -34,7 +35,8 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun ASCIIFilterApp() {
-    val viewModel: MainViewModel = viewModel()
+    val context = LocalContext.current
+    val viewModel: MainViewModel = viewModel { MainViewModel(context) }
     
     MainScreen(
         viewModel = viewModel

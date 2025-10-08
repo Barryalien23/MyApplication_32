@@ -1,3 +1,146 @@
 <?xml version="1.0" encoding="utf-8"?>
-<bitmap xmlns:android="http://schemas.android.com/apk/res/android"
-    android:src="@mipmap/ic_launcher" />
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    
+    <!-- Оранжевые ASCII символы -->
+    <path
+        android:fillColor="#FF6B35"
+        android:pathData="M20,25 L25,25 L25,30 L20,30 Z" />
+    <path
+        android:fillColor="#FF6B35"
+        android:pathData="M30,25 L35,25 L35,30 L30,30 Z" />
+    <path
+        android:fillColor="#FF6B35"
+        android:pathData="M40,25 L45,25 L45,30 L40,30 Z" />
+    <path
+        android:fillColor="#FF6B35"
+        android:pathData="M50,25 L55,25 L55,30 L50,30 Z" />
+    <path
+        android:fillColor="#FF6B35"
+        android:pathData="M60,25 L65,25 L65,30 L60,30 Z" />
+    <path
+        android:fillColor="#FF6B35"
+        android:pathData="M70,25 L75,25 L75,30 L70,30 Z" />
+    <path
+        android:fillColor="#FF6B35"
+        android:pathData="M80,25 L85,25 L85,30 L80,30 Z" />
+    
+    <!-- Вторая строка ASCII -->
+    <path
+        android:fillColor="#FF8C42"
+        android:pathData="M20,35 L25,35 L25,40 L20,40 Z" />
+    <path
+        android:fillColor="#FF8C42"
+        android:pathData="M30,35 L35,35 L35,40 L30,40 Z" />
+    <path
+        android:fillColor="#FF8C42"
+        android:pathData="M40,35 L45,35 L45,40 L40,40 Z" />
+    <path
+        android:fillColor="#FF8C42"
+        android:pathData="M50,35 L55,35 L55,40 L50,40 Z" />
+    <path
+        android:fillColor="#FF8C42"
+        android:pathData="M60,35 L65,35 L65,40 L60,40 Z" />
+    <path
+        android:fillColor="#FF8C42"
+        android:pathData="M70,35 L75,35 L75,40 L70,40 Z" />
+    <path
+        android:fillColor="#FF8C42"
+        android:pathData="M80,35 L85,35 L85,40 L80,40 Z" />
+    
+    <!-- Третья строка ASCII -->
+    <path
+        android:fillColor="#FFA500"
+        android:pathData="M20,45 L25,45 L25,50 L20,50 Z" />
+    <path
+        android:fillColor="#FFA500"
+        android:pathData="M30,45 L35,45 L35,50 L30,50 Z" />
+    <path
+        android:fillColor="#FFA500"
+        android:pathData="M40,45 L45,45 L45,50 L40,50 Z" />
+    <path
+        android:fillColor="#FFA500"
+        android:pathData="M50,45 L55,45 L55,50 L50,50 Z" />
+    <path
+        android:fillColor="#FFA500"
+        android:pathData="M60,45 L65,45 L65,50 L60,50 Z" />
+    <path
+        android:fillColor="#FFA500"
+        android:pathData="M70,45 L75,45 L75,50 L70,50 Z" />
+    <path
+        android:fillColor="#FFA500"
+        android:pathData="M80,45 L85,45 L85,50 L80,50 Z" />
+    
+    <!-- Четвертая строка ASCII -->
+    <path
+        android:fillColor="#FFB84D"
+        android:pathData="M20,55 L25,55 L25,60 L20,60 Z" />
+    <path
+        android:fillColor="#FFB84D"
+        android:pathData="M30,55 L35,55 L35,60 L30,60 Z" />
+    <path
+        android:fillColor="#FFB84D"
+        android:pathData="M40,55 L45,55 L45,60 L40,60 Z" />
+    <path
+        android:fillColor="#FFB84D"
+        android:pathData="M50,55 L55,55 L55,60 L50,60 Z" />
+    <path
+        android:fillColor="#FFB84D"
+        android:pathData="M60,55 L65,55 L65,60 L60,60 Z" />
+    <path
+        android:fillColor="#FFB84D"
+        android:pathData="M70,55 L75,55 L75,60 L70,60 Z" />
+    <path
+        android:fillColor="#FFB84D"
+        android:pathData="M80,55 L85,55 L85,60 L80,60 Z" />
+    
+    <!-- Пятая строка ASCII -->
+    <path
+        android:fillColor="#FF6B35"
+        android:pathData="M20,65 L25,65 L25,70 L20,70 Z" />
+    <path
+        android:fillColor="#FF6B35"
+        android:pathData="M30,65 L35,65 L35,70 L30,70 Z" />
+    <path
+        android:fillColor="#FF6B35"
+        android:pathData="M40,65 L45,65 L45,70 L40,70 Z" />
+    <path
+        android:fillColor="#FF6B35"
+        android:pathData="M50,65 L55,65 L55,70 L50,70 Z" />
+    <path
+        android:fillColor="#FF6B35"
+        android:pathData="M60,65 L65,65 L65,70 L60,70 Z" />
+    <path
+        android:fillColor="#FF6B35"
+        android:pathData="M70,65 L75,65 L75,70 L70,70 Z" />
+    <path
+        android:fillColor="#FF6B35"
+        android:pathData="M80,65 L85,65 L85,70 L80,70 Z" />
+    
+    <!-- Шестая строка ASCII -->
+    <path
+        android:fillColor="#FF8C42"
+        android:pathData="M20,75 L25,75 L25,80 L20,80 Z" />
+    <path
+        android:fillColor="#FF8C42"
+        android:pathData="M30,75 L35,75 L35,80 L30,80 Z" />
+    <path
+        android:fillColor="#FF8C42"
+        android:pathData="M40,75 L45,75 L45,80 L40,80 Z" />
+    <path
+        android:fillColor="#FF8C42"
+        android:pathData="M50,75 L55,75 L55,80 L50,80 Z" />
+    <path
+        android:fillColor="#FF8C42"
+        android:pathData="M60,75 L65,75 L65,80 L60,80 Z" />
+    <path
+        android:fillColor="#FF8C42"
+        android:pathData="M70,75 L75,75 L75,80 L70,80 Z" />
+    <path
+        android:fillColor="#FF8C42"
+        android:pathData="M80,75 L85,75 L85,80 L80,80 Z" />
+    
+</vector>

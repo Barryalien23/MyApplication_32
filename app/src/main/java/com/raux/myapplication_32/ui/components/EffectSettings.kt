@@ -62,6 +62,7 @@ fun EffectSettingsScreen(
     backgroundColor: Color,
     textColor: Color,
     fontSize: Float,
+    colorState: com.raux.myapplication_32.data.models.ColorState, // Добавляем ColorState
     // Кнопки камеры
     cameraFacing: CameraFacing,
     captureState: CaptureState,
@@ -84,6 +85,7 @@ fun EffectSettingsScreen(
             backgroundColor = backgroundColor,
             textColor = textColor,
             fontSize = fontSize,
+            colorState = colorState, // Передаем ColorState для градиента
             modifier = Modifier.fillMaxSize()
         )
         

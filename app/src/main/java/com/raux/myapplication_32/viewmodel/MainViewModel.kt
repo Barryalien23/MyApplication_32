@@ -1,27 +1,44 @@
 package com.raux.myapplication_32.viewmodel
 
+import android.content.ContentValues
+import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Canvas
 import android.graphics.ImageFormat
 import android.graphics.Matrix
+import android.graphics.Paint
 import android.graphics.Rect
+import android.graphics.Typeface
 import android.graphics.YuvImage
+import android.os.Environment
+import android.provider.MediaStore
 import androidx.camera.core.ImageProxy
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.raux.myapplication_32.data.models.*
 import com.raux.myapplication_32.engine.ASCIIEngine
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
+import java.io.File
+import java.io.FileOutputStream
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 /**
- * ViewModel для главного экрана приложения
+* ViewModel для главного экрана приложения
  */
-class MainViewModel : ViewModel() {
+class MainViewModel(
+    private val context: Context
+) : ViewModel() {
     
     private val asciiEngine = ASCIIEngine()
     
@@ -99,14 +116,29 @@ class MainViewModel : ViewModel() {
     }
     
     /**
-     * Захват фото
+     * Захват фото с ASCII эффектом
      */
     fun capturePhoto() {
         _captureState.value = CaptureState.Capturing
-        // Здесь будет логика захвата фото
         viewModelScope.launch {
-            kotlinx.coroutines.delay(1000) // Имитация процесса захвата
-            _captureState.value = CaptureState.Idle
+            try {
+                val asciiText = _asciiResult.value
+                val colorState = _colorState.value
+                val fontSize = _asciiFontSize.value
+                
+                // Отладочная информация
+                android.util.Log.d("ASCII_Capture", "ColorState: ${colorState.symbols}")
+                android.util.Log.d("ASCII_Capture", "ASCII text length: ${asciiText.length}")
+                
+                val imageUri = saveASCIIToGallery(asciiText, colorState, fontSize)
+                if (imageUri != null) {
+                    _captureState.value = CaptureState.Success(imageUri)
+                } else {
+                    _captureState.value = CaptureState.Error("Failed to save ASCII image")
+                }
+            } catch (e: Exception) {
+                _captureState.value = CaptureState.Error(e.message ?: "Unknown error occurred")
+            }
         }
     }
     
@@ -323,6 +355,111 @@ class MainViewModel : ViewModel() {
                 val color = android.graphics.Color.rgb(gray, gray, gray)
                 bitmap.setPixel(x, y, color)
             }
+        }
+        
+        return bitmap
+    }
+    
+    /**
+     * Сохранение ASCII текста как изображение в галерею
+     */
+    private suspend fun saveASCIIToGallery(
+        asciiText: String,
+        colorState: ColorState,
+        fontSize: Float
+    ): String? = withContext(Dispatchers.IO) {
+        try {
+            // Создаем Bitmap из ASCII текста
+            val bitmap = createASCIIBitmap(asciiText, colorState, fontSize)
+            
+            // Генерируем уникальное имя файла
+            val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+            val fileName = "ASCII_Art_$timestamp.jpg"
+            
+            // Сохраняем в галерею
+            val contentValues = ContentValues().apply {
+                put(MediaStore.Images.Media.DISPLAY_NAME, fileName)
+                put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+                put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/ASCII_Art")
+            }
+            
+            val uri = context.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
+            uri?.let { imageUri ->
+                context.contentResolver.openOutputStream(imageUri)?.use { outputStream ->
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, 90, outputStream)
+                }
+                return@withContext imageUri.toString()
+            }
+            
+            return@withContext null
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return@withContext null
+        }
+    }
+    
+    /**
+     * Создание Bitmap из ASCII текста без рамок
+     */
+    private fun createASCIIBitmap(
+        asciiText: String,
+        colorState: ColorState,
+        fontSize: Float
+    ): Bitmap {
+        val lines = asciiText.split("\n")
+        val maxLineLength = lines.maxOfOrNull { it.length } ?: 0
+        val lineCount = lines.size
+        
+        // Оптимальный размер шрифта для сохранения (больше чем на экране)
+        val saveFontSize = maxOf(fontSize * 2f, 24f) // Увеличиваем шрифт в 2 раза или минимум 24px
+        
+        // Вычисляем размеры изображения точно по тексту (без отступов)
+        val charWidth = saveFontSize * 0.6f // Примерная ширина символа
+        val charHeight = saveFontSize * 1.2f // Примерная высота символа
+        
+        val imageWidth = (maxLineLength * charWidth).toInt()
+        val imageHeight = (lineCount * charHeight).toInt()
+        
+        // Создаем Bitmap точно по тексту (без отступов)
+        val bitmap = Bitmap.createBitmap(imageWidth, imageHeight, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        
+        // Заливаем фон
+        canvas.drawColor(colorState.background.toArgb())
+        
+        // Рисуем ASCII текст с поддержкой градиента
+        var y = saveFontSize
+        for ((lineIndex, line) in lines.withIndex()) {
+            // Вычисляем цвет для этой строки в градиенте
+            val progress = if (lines.size > 1) lineIndex.toFloat() / (lines.size - 1) else 0f
+            
+            val lineColor = when (val symbols = colorState.symbols) {
+                is SymbolPaint.Solid -> symbols.color.toArgb()
+                is SymbolPaint.Gradient -> {
+                    val startColor = symbols.start
+                    val endColor = symbols.end
+                    // Правильная конвертация Compose Color в Android Color
+                    val red = ((startColor.red + (endColor.red - startColor.red) * progress) * 255).toInt().coerceIn(0, 255)
+                    val green = ((startColor.green + (endColor.green - startColor.green) * progress) * 255).toInt().coerceIn(0, 255)
+                    val blue = ((startColor.blue + (endColor.blue - startColor.blue) * progress) * 255).toInt().coerceIn(0, 255)
+                    
+                    // Отладочная информация
+                    android.util.Log.d("ASCII_Gradient", "Line $lineIndex: progress=$progress, RGB=($red, $green, $blue)")
+                    
+                    android.graphics.Color.rgb(red, green, blue)
+                }
+            }
+            
+            // Настраиваем Paint для этой строки
+            val textPaint = Paint().apply {
+                isAntiAlias = true
+                textSize = saveFontSize
+                typeface = Typeface.MONOSPACE
+                color = lineColor
+            }
+            
+            canvas.drawText(line, 0f, y, textPaint)
+            y += saveFontSize * 1.2f
         }
         
         return bitmap

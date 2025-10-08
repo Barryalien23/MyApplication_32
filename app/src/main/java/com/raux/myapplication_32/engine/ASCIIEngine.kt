@@ -50,11 +50,16 @@ class ASCIIEngine {
         // CELL = 100 → Много символов (180x120), маленький шрифт
         val cellPercent = params.cell / 100f
         
-        // Вычисляем количество символов на основе CELL (от 40x30 до 180x120)
+        // Умный расчет количества символов на основе размера экрана
+        // Рассчитываем максимальное количество символов, которое поместится на экране
+        val maxCharsByScreenWidth = (screenWidth / 4f).toInt() // Минимальный размер символа 4sp
+        val maxCharsByScreenHeight = (screenHeight / 4f).toInt()
+        
+        // Вычисляем количество символов на основе CELL (от 40x30 до максимума экрана)
         val minSymbolsWidth = 40
         val minSymbolsHeight = 30
-        val maxSymbolsWidthCalculated = 180
-        val maxSymbolsHeightCalculated = 120
+        val maxSymbolsWidthCalculated = minOf(180, maxCharsByScreenWidth)
+        val maxSymbolsHeightCalculated = minOf(120, maxCharsByScreenHeight)
         
         val charsPerRow = (minSymbolsWidth + (maxSymbolsWidthCalculated - minSymbolsWidth) * cellPercent).toInt()
             .coerceIn(minSymbolsWidth, maxSymbolsWidth)
@@ -97,8 +102,8 @@ class ASCIIEngine {
         // Берем минимальный размер, чтобы все поместилось
         val optimalFontSize = minOf(maxFontSizeByWidth, maxFontSizeByHeight)
         
-        // Более строгие ограничения для лучшего заполнения экрана (от 4sp до 20sp)
-        return optimalFontSize.coerceIn(4f, 20f)
+        // Более агрессивные ограничения для максимального заполнения экрана (от 3sp до 18sp)
+        return optimalFontSize.coerceIn(3f, 18f)
     }
     
     /**

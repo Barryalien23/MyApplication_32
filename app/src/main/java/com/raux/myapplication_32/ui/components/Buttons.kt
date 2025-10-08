@@ -3,25 +3,40 @@ package com.raux.myapplication_32.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.material3.ripple
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import com.raux.myapplication_32.ui.theme.*
 
 /**
  * Кнопка захвата фото (большая белая кнопка)
+ * Дизайн согласно Figma: белая обводка с отступом, белый фон внутри, эффект сжатия при нажатии
  */
 @Composable
 fun CaptureButton(
@@ -29,21 +44,65 @@ fun CaptureButton(
     modifier: Modifier = Modifier,
     isCapturing: Boolean = false
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val hapticFeedback = LocalHapticFeedback.current
+    
+    // Анимация отступа при нажатии (4dp -> 6dp для эффекта сжатия)
+    val padding by animateFloatAsState(
+        targetValue = if (isPressed) 6f else 4f,
+        animationSpec = tween(
+            durationMillis = 100, // Очень быстрая анимация
+            easing = FastOutSlowInEasing
+        ),
+        label = "padding"
+    )
+    
     Box(
         modifier = modifier
             .width(120.dp)
             .height(60.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(AppColors.White)
-            .clickable(enabled = !isCapturing) { onClick() },
+            .shadow(
+                elevation = 8.dp, // Тень согласно Figma: 0px_0px_8px_0px_rgba(0,0,0,0.08)
+                shape = RoundedCornerShape(20.dp),
+                ambientColor = Color.Black.copy(alpha = 0.08f),
+                spotColor = Color.Black.copy(alpha = 0.08f)
+            )
+            .clip(RoundedCornerShape(20.dp)) // Радиус 20dp согласно Figma
+            .border(
+                width = 2.dp, // Белая обводка 2dp
+                color = Color(0x66FFFFFF), // rgba(255,255,255,0.4) - белая с прозрачностью 40%
+                shape = RoundedCornerShape(20.dp)
+            )
+            .background(Color(0x59000000)) // Черный фон с прозрачностью 35%
+            .clickable(
+                interactionSource = interactionSource,
+                indication = ripple(
+                    bounded = true,
+                    radius = 40.dp,
+                    color = Color.White.copy(alpha = 0.3f)
+                ),
+                enabled = !isCapturing
+            ) { 
+                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                onClick() 
+            },
         contentAlignment = Alignment.Center
     ) {
-        // Простая белая кнопка без внутреннего круга
+        // Белый фон внутри с анимированным отступом
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding.dp) // Анимированный отступ: 4dp -> 6dp
+                .clip(RoundedCornerShape(16.dp)) // Радиус 16dp внутри
+                .background(AppColors.White) // Белый фон
+        )
     }
 }
 
 /**
  * Функциональная кнопка (переключение камеры, загрузка и т.д.)
+ * Дизайн согласно Figma: полупрозрачный фон с размытием и тенью
  */
 @Composable
 fun FunctionButton(
@@ -52,14 +111,41 @@ fun FunctionButton(
     modifier: Modifier = Modifier,
     enabled: Boolean = true
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val hapticFeedback = LocalHapticFeedback.current
+    
     Box(
         modifier = modifier
-            .size(60.dp, 60.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(AppColors.MainGrey)
-            .clickable(enabled = enabled) { onClick() },
+            .size(52.dp) // Размер согласно Figma
+            .shadow(
+                elevation = 8.dp, // Тень согласно Figma: 0px_0px_8px_0px_rgba(0,0,0,0.08)
+                shape = RoundedCornerShape(16.dp),
+                ambientColor = Color.Black.copy(alpha = 0.08f),
+                spotColor = Color.Black.copy(alpha = 0.08f)
+            )
+            .clip(RoundedCornerShape(16.dp)) // Радиус 16dp согласно Figma
+            .clickable(
+                interactionSource = interactionSource,
+                indication = ripple(
+                    bounded = true,
+                    radius = 26.dp,
+                    color = Color.White.copy(alpha = 0.3f)
+                ),
+                enabled = enabled
+            ) { 
+                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                onClick() 
+            },
         contentAlignment = Alignment.Center
     ) {
+        // Черная подложка с прозрачностью 35%
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color(0x59000000)) // Черный фон с прозрачностью 35%
+        )
+        
+        // Четкая иконка поверх размытой подложки
         Icon(
             imageVector = icon,
             contentDescription = null,
