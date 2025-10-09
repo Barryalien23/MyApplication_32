@@ -24,6 +24,44 @@ sealed class SymbolPaint {
 }
 ```
 
+### **Градиентная система**
+```kotlin
+// Применение градиента к каждой строке ASCII
+@Composable
+private fun ASCIIPreviewWithGradient(
+    asciiText: String,
+    fontSize: Float,
+    colorState: ColorState
+) {
+    val lines = asciiText.split("\n")
+    val totalLines = lines.size
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        lines.forEachIndexed { index, line ->
+            val progress = if (totalLines > 1) index.toFloat() / (totalLines - 1) else 0f
+            
+            val lineColor = when (val symbols = colorState.symbols) {
+                is SymbolPaint.Solid -> symbols.color
+                is SymbolPaint.Gradient -> {
+                    Color(
+                        red = symbols.start.red + (symbols.end.red - symbols.start.red) * progress,
+                        green = symbols.start.green + (symbols.end.green - symbols.start.green) * progress,
+                        blue = symbols.start.blue + (symbols.end.blue - symbols.start.blue) * progress
+                    )
+                }
+            }
+            
+            Text(
+                text = line,
+                color = lineColor,
+                fontFamily = FontFamily.Monospace,
+                fontSize = fontSize.sp
+            )
+        }
+    }
+}
+```
+
 ### **CameraFacing**
 ```kotlin
 enum class CameraFacing {
@@ -79,6 +117,21 @@ fun convertToASCII(...): Pair<String, Float> {
     
     return Pair(asciiText, optimalFontSize)
 }
+
+private fun calculateOptimalFontSize(
+    charsPerRow: Int,
+    rowsCount: Int,
+    screenWidth: Int,
+    screenHeight: Int
+): Float {
+    val charWidthFactor = 0.6f
+    val lineHeightFactor = 1.2f
+    
+    val maxFontSizeByWidth = screenWidth / charsPerRow / charWidthFactor
+    val maxFontSizeByHeight = screenHeight / rowsCount / lineHeightFactor
+    
+    return minOf(maxFontSizeByWidth, maxFontSizeByHeight).coerceIn(8f, 24f)
+}
 ```
 
 ### **3. Применение эффектов**
@@ -113,31 +166,76 @@ private fun applyBlur(bitmap: Bitmap, intensity: Int): Bitmap {
 
 ## 🎨 UI Компоненты
 
-### **1. ASCIIPreview**
+### **1. ASCIIPreview с поддержкой градиента**
 ```kotlin
 @Composable
 fun ASCIIPreview(
     asciiText: String,
-    backgroundColor: Color,
-    textColor: Color,
-    fontSize: Float = 16f,
+    fontSize: Float,
+    colorState: ColorState,
     modifier: Modifier = Modifier
 ) {
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(backgroundColor),
+            .background(colorState.background),
         contentAlignment = Alignment.Center
     ) {
-        Text(
-            text = asciiText,
-            color = textColor,
-            fontFamily = FontFamily.Monospace,
-            fontSize = fontSize.sp,
-            textAlign = TextAlign.Start, // Заполнение всей ширины
-            lineHeight = (fontSize * 1.1f).sp,
-            maxLines = Int.MAX_VALUE
-        )
+        when (colorState.symbols) {
+            is SymbolPaint.Solid -> {
+                Text(
+                    text = asciiText,
+                    color = colorState.symbols.color,
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = fontSize.sp,
+                    textAlign = TextAlign.Start,
+                    lineHeight = (fontSize * 1.1f).sp,
+                    maxLines = Int.MAX_VALUE
+                )
+            }
+            is SymbolPaint.Gradient -> {
+                ASCIIPreviewWithGradient(asciiText, fontSize, colorState)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ASCIIPreviewWithGradient(
+    asciiText: String,
+    fontSize: Float,
+    colorState: ColorState
+) {
+    val lines = asciiText.split("\n")
+    val totalLines = lines.size
+
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.Center
+    ) {
+        lines.forEachIndexed { index, line ->
+            val progress = if (totalLines > 1) index.toFloat() / (totalLines - 1) else 0f
+            
+            val lineColor = when (val symbols = colorState.symbols) {
+                is SymbolPaint.Solid -> symbols.color
+                is SymbolPaint.Gradient -> {
+                    Color(
+                        red = symbols.start.red + (symbols.end.red - symbols.start.red) * progress,
+                        green = symbols.start.green + (symbols.end.green - symbols.start.green) * progress,
+                        blue = symbols.start.blue + (symbols.end.blue - symbols.start.blue) * progress
+                    )
+                }
+            }
+            
+            Text(
+                text = line,
+                color = lineColor,
+                fontFamily = FontFamily.Monospace,
+                fontSize = fontSize.sp,
+                textAlign = TextAlign.Start,
+                lineHeight = (fontSize * 1.1f).sp
+            )
+        }
     }
 }
 ```
@@ -315,6 +413,58 @@ bitmap.recycle()
 rotatedBitmap.recycle()
 ```
 
+### **5. Сохранение градиента в фото**
+```kotlin
+private fun createASCIIBitmap(
+    asciiText: String,
+    colorState: ColorState,
+    fontSize: Float
+): Bitmap {
+    val lines = asciiText.split("\n")
+    val maxLineLength = lines.maxOfOrNull { it.length } ?: 0
+    val lineCount = lines.size
+
+    val saveFontSize = maxOf(fontSize * 2f, 24f)
+    val charWidth = saveFontSize * 0.6f
+    val charHeight = saveFontSize * 1.2f
+
+    val imageWidth = (maxLineLength * charWidth).toInt()
+    val imageHeight = (lineCount * charHeight).toInt()
+
+    val bitmap = Bitmap.createBitmap(imageWidth, imageHeight, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(bitmap)
+
+    canvas.drawColor(colorState.background.toArgb())
+
+    var y = saveFontSize
+    for ((lineIndex, line) in lines.withIndex()) {
+        val progress = if (lines.size > 1) lineIndex.toFloat() / (lines.size - 1) else 0f
+        
+        val lineColor = when (val symbols = colorState.symbols) {
+            is SymbolPaint.Solid -> symbols.color.toArgb()
+            is SymbolPaint.Gradient -> {
+                val red = ((symbols.start.red + (symbols.end.red - symbols.start.red) * progress) * 255).toInt().coerceIn(0, 255)
+                val green = ((symbols.start.green + (symbols.end.green - symbols.start.green) * progress) * 255).toInt().coerceIn(0, 255)
+                val blue = ((symbols.start.blue + (symbols.end.blue - symbols.start.blue) * progress) * 255).toInt().coerceIn(0, 255)
+                android.graphics.Color.rgb(red, green, blue)
+            }
+        }
+        
+        val textPaint = Paint().apply {
+            isAntiAlias = true
+            textSize = saveFontSize
+            typeface = Typeface.MONOSPACE
+            color = lineColor
+        }
+        
+        canvas.drawText(line, 0f, y, textPaint)
+        y += saveFontSize * 1.2f
+    }
+    
+    return bitmap
+}
+```
+
 ---
 
 ## 🎯 Навигация
@@ -371,6 +521,58 @@ fun Modifier.sliderAnimation(): Modifier {
     )
     
     return this.graphicsLayer(scaleX = scale, scaleY = scale)
+}
+
+// Эффект сжатия центральной кнопки
+@Composable
+fun CaptureButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var isPressed by remember { mutableStateOf(false) }
+    
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.95f else 1f,
+        animationSpec = tween(durationMillis = 100)
+    )
+    
+    val hapticFeedback = LocalHapticFeedback.current
+    
+    Box(
+        modifier = modifier
+            .size(80.dp)
+            .shadow(elevation = 8.dp)
+            .clip(RoundedCornerShape(20.dp))
+            .background(Color(0x59000000))
+            .border(
+                width = 2.dp,
+                color = Color(0x66FFFFFF),
+                shape = RoundedCornerShape(20.dp)
+            )
+            .padding(4.dp)
+            .background(AppColors.White)
+            .clip(RoundedCornerShape(16.dp))
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) {
+                isPressed = true
+                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                onClick()
+                isPressed = false
+            }
+    ) {
+        Icon(
+            imageVector = Icons.Default.CameraAlt,
+            contentDescription = "Capture Photo",
+            modifier = Modifier.size(32.dp),
+            tint = Color.Black
+        )
+    }
 }
 ```
 
@@ -434,6 +636,33 @@ private fun convertToASCII(...): Pair<String, Float> {
     Log.d("ASCIIEngine", "Processing time: ${endTime - startTime}ms")
     
     return result
+}
+
+// Отладка градиента
+private fun createASCIIBitmap(...): Bitmap {
+    // ... код создания bitmap ...
+    
+    for ((lineIndex, line) in lines.withIndex()) {
+        val progress = if (lines.size > 1) lineIndex.toFloat() / (lines.size - 1) else 0f
+        
+        val lineColor = when (val symbols = colorState.symbols) {
+            is SymbolPaint.Solid -> symbols.color.toArgb()
+            is SymbolPaint.Gradient -> {
+                val red = ((symbols.start.red + (symbols.end.red - symbols.start.red) * progress) * 255).toInt().coerceIn(0, 255)
+                val green = ((symbols.start.green + (symbols.end.green - symbols.start.green) * progress) * 255).toInt().coerceIn(0, 255)
+                val blue = ((symbols.start.blue + (symbols.end.blue - symbols.start.blue) * progress) * 255).toInt().coerceIn(0, 255)
+                
+                // Отладочная информация
+                android.util.Log.d("ASCII_Gradient", "Line $lineIndex: progress=$progress, RGB=($red, $green, $blue)")
+                
+                android.graphics.Color.rgb(red, green, blue)
+            }
+        }
+        
+        // ... рисование текста ...
+    }
+    
+    return bitmap
 }
 ```
 

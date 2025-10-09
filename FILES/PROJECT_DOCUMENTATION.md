@@ -129,13 +129,18 @@ app/src/main/java/com/raux/myapplication_32/
 
 ### **Цветовые модели:**
 - **SymbolPaint.Solid** - однотонный цвет символов
-- **SymbolPaint.Gradient** - градиентный цвет символов
+- **SymbolPaint.Gradient** - градиентный цвет символов (от начального к конечному цвету)
 - **ColorState** - состояние цветов (фон + символы)
 
 ### **Цветовые компоненты:**
 - **BG COLOR** - цвет фона ASCII-эффекта
-- **COLOR #1** - основной цвет символов
-- **GRADIENT** - градиентный цвет символов
+- **COLOR #1** - основной цвет символов (для Solid режима)
+- **GRADIENT** - градиентный цвет символов (для Gradient режима)
+
+### **Градиентная система:**
+- **Реальное время:** Градиент применяется к каждой строке ASCII текста
+- **Сохранение:** Градиент корректно сохраняется в фото с правильной конвертацией цветов
+- **Алгоритм:** Каждая строка получает интерполированный цвет между начальным и конечным
 
 ---
 
@@ -161,6 +166,7 @@ app/src/main/java/com/raux/myapplication_32/
 - **Ограничение символов** до 200x150 для стабильности
 - **Оптимизация памяти** - автоматическое освобождение bitmap'ов
 - **Throttling** - ограничение частоты обновлений UI
+- **Динамический размер шрифта** - автоматическая подстройка под количество символов
 
 ### **Камера:**
 - **CameraX** для работы с камерой
@@ -172,6 +178,8 @@ app/src/main/java/com/raux/myapplication_32/
 - **Микро-анимации** для кнопок и слайдеров
 - **Плавные переходы** между состояниями
 - **Spring анимации** для естественного ощущения
+- **Эффект сжатия** центральной кнопки при нажатии
+- **Микро вибрации** для тактильной обратной связи
 
 ---
 
@@ -179,9 +187,19 @@ app/src/main/java/com/raux/myapplication_32/
 
 ### **Расчет размера шрифта:**
 ```kotlin
-val maxFontSizeByWidth = screenWidth / charsPerRow / 0.55f
-val maxFontSizeByHeight = screenHeight / rowsCount / 1.1f
-val optimalFontSize = minOf(maxFontSizeByWidth, maxFontSizeByHeight)
+val maxFontSizeByWidth = screenWidth / charsPerRow / 0.6f
+val maxFontSizeByHeight = screenHeight / rowsCount / 1.2f
+val optimalFontSize = minOf(maxFontSizeByWidth, maxFontSizeByHeight).coerceIn(8f, 24f)
+```
+
+### **Применение градиента:**
+```kotlin
+val progress = if (totalLines > 1) index.toFloat() / (totalLines - 1) else 0f
+val lineColor = Color(
+    red = symbols.start.red + (symbols.end.red - symbols.start.red) * progress,
+    green = symbols.start.green + (symbols.end.green - symbols.start.green) * progress,
+    blue = symbols.start.blue + (symbols.end.blue - symbols.start.blue) * progress
+)
 ```
 
 ### **Расчет количества символов:**
