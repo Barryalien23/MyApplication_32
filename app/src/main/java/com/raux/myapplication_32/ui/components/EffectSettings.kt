@@ -13,6 +13,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -140,6 +142,8 @@ private fun EffectParameterTabs(
     activeParam: String,
     onParamSelected: (String) -> Unit
 ) {
+    val hapticFeedback = LocalHapticFeedback.current
+    
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -157,7 +161,10 @@ private fun EffectParameterTabs(
                         if (isActive) AppColors.GreyActive else AppColors.GreyDisable
                     )
                     .tabAnimation(isActive)
-                    .clickable { onParamSelected(param.name) }
+                    .clickable { 
+                        hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onParamSelected(param.name) 
+                    }
                     .padding(horizontal = 12.dp),
                 contentAlignment = Alignment.Center
             ) {

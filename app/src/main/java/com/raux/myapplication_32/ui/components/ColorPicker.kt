@@ -12,6 +12,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.raux.myapplication_32.data.models.ColorState
@@ -70,12 +72,17 @@ fun ColorButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val hapticFeedback = LocalHapticFeedback.current
+    
     Box(
         modifier = modifier
             .height(60.dp)
             .clip(RoundedCornerShape(12.dp))
             .background(AppColors.MainGrey)
-            .clickable { onClick() }
+            .clickable { 
+                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                onClick() 
+            }
             .padding(8.dp),
         contentAlignment = Alignment.Center
     ) {
@@ -116,6 +123,8 @@ fun GradientButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val hapticFeedback = LocalHapticFeedback.current
+    
     Box(
         modifier = modifier
             .height(60.dp)
@@ -123,7 +132,10 @@ fun GradientButton(
             .background(
                 if (isGradient) AppColors.White20 else AppColors.MainGrey
             )
-            .clickable { onClick() }
+            .clickable { 
+                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                onClick() 
+            }
             .padding(8.dp),
         contentAlignment = Alignment.Center
     ) {

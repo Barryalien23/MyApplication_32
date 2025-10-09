@@ -13,8 +13,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -45,6 +47,7 @@ fun EffectParameterSlider(
     var isDragging by remember { mutableStateOf(false) }
     var lastUpdateTime by remember { mutableStateOf(0L) }
     var lastValue by remember { mutableStateOf(value) }
+    val hapticFeedback = LocalHapticFeedback.current
     
     // Анимация для плавного изменения прогресс-бара
     val animatedProgress by animateFloatAsState(
@@ -81,6 +84,7 @@ fun EffectParameterSlider(
                     // Обработка клика - устанавливаем значение на основе позиции клика
                     val newValue = (offset.x / size.width * 100).toInt()
                     val clampedValue = max(0, min(100, newValue))
+                    hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
                     onValueChange(clampedValue)
                 }
             }
@@ -89,6 +93,7 @@ fun EffectParameterSlider(
                     onDragStart = { 
                         isDragging = true
                         lastUpdateTime = System.currentTimeMillis()
+                        hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
                     },
                     onDragEnd = { 
                         isDragging = false
@@ -133,7 +138,10 @@ fun EffectParameterSlider(
             
             // Стрелка назад справа
             IconButton(
-                onClick = onBackClick,
+                onClick = { 
+                    hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onBackClick() 
+                },
                 modifier = Modifier.size(24.dp)
             ) {
                 Icon(

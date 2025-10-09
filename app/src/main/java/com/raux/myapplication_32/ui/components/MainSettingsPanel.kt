@@ -12,6 +12,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -128,6 +130,7 @@ private fun EffectButtonVertical(
     modifier: Modifier = Modifier
 ) {
     val interactionSource = remember { MutableInteractionSource() }
+    val hapticFeedback = LocalHapticFeedback.current
     
     Box(
         modifier = modifier
@@ -137,7 +140,10 @@ private fun EffectButtonVertical(
             .clickable(
                 interactionSource = interactionSource,
                 indication = null
-            ) { onClick() }
+            ) { 
+                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                onClick() 
+            }
             .padding(12.dp),
         contentAlignment = Alignment.Center
     ) {
@@ -177,6 +183,7 @@ private fun MainSettingButton(
     modifier: Modifier = Modifier
 ) {
     val interactionSource = remember { MutableInteractionSource() }
+    val hapticFeedback = LocalHapticFeedback.current
     
     Box(
         modifier = modifier
@@ -187,7 +194,10 @@ private fun MainSettingButton(
             .clickable(
                 interactionSource = interactionSource,
                 indication = null
-            ) { onClick() }
+            ) { 
+                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                onClick() 
+            }
     ) {
         // Полоска прогресса слева - заполняет всю высоту, но только часть ширины
         Box(
@@ -237,6 +247,7 @@ private fun MainColorButton(
     modifier: Modifier = Modifier
 ) {
     val interactionSource = remember { MutableInteractionSource() }
+    val hapticFeedback = LocalHapticFeedback.current
     
     Box(
         modifier = modifier
@@ -247,7 +258,10 @@ private fun MainColorButton(
             .clickable(
                 interactionSource = interactionSource,
                 indication = null
-            ) { onClick() }
+            ) { 
+                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                onClick() 
+            }
             .padding(12.dp),
         contentAlignment = Alignment.Center
     ) {
@@ -285,6 +299,7 @@ private fun MainGradientButton(
     modifier: Modifier = Modifier
 ) {
     val interactionSource = remember { MutableInteractionSource() }
+    val hapticFeedback = LocalHapticFeedback.current
     
     Box(
         modifier = modifier
@@ -295,7 +310,10 @@ private fun MainGradientButton(
             .clickable(
                 interactionSource = interactionSource,
                 indication = null
-            ) { onClick() }
+            ) { 
+                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                onClick() 
+            }
             .padding(12.dp),
         contentAlignment = Alignment.Center
     ) {

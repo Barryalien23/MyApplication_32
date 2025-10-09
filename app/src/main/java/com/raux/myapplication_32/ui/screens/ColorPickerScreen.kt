@@ -12,6 +12,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.raux.myapplication_32.data.models.ColorState
@@ -101,8 +103,12 @@ fun ColorPickerScreen(
             )
             
             // Кнопка "Назад"
+            val hapticFeedback = LocalHapticFeedback.current
             Button(
-                onClick = onBackClick,
+                onClick = { 
+                    hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onBackClick() 
+                },
                 colors = ButtonDefaults.buttonColors(
                     containerColor = AppColors.White,
                     contentColor = AppColors.Black
@@ -130,6 +136,8 @@ fun ModeButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val hapticFeedback = LocalHapticFeedback.current
+    
     Box(
         modifier = modifier
             .height(50.dp)
@@ -137,7 +145,10 @@ fun ModeButton(
             .background(
                 if (isSelected) AppColors.White20 else AppColors.MainGrey
             )
-            .clickable { onClick() },
+            .clickable { 
+                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                onClick() 
+            },
         contentAlignment = Alignment.Center
     ) {
         Text(
@@ -156,6 +167,7 @@ fun ColorPalette(
     onColorSelected: (Color) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val hapticFeedback = LocalHapticFeedback.current
     val colors = listOf(
         Color.White,
         Color.Black,
@@ -186,7 +198,10 @@ fun ColorPalette(
                     .size(40.dp)
                     .clip(CircleShape)
                     .background(color)
-                    .clickable { onColorSelected(color) }
+                    .clickable { 
+                        hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onColorSelected(color) 
+                    }
             )
         }
     }

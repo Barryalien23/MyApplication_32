@@ -1,8 +1,10 @@
 package com.raux.myapplication_32.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -10,11 +12,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -44,6 +49,7 @@ fun MainScreen(
     val asciiResult by viewModel.asciiResult.collectAsStateWithLifecycle()
     val asciiFontSize by viewModel.asciiFontSize.collectAsStateWithLifecycle()
     val selectedEffectParam by viewModel.selectedEffectParam.collectAsStateWithLifecycle()
+    val hapticFeedback = LocalHapticFeedback.current
     
     BasicCameraPermissionHandler {
         when (currentScreen) {
@@ -59,7 +65,10 @@ fun MainScreen(
                     asciiFontSize = asciiFontSize,
                     onToggleCamera = { viewModel.toggleCamera() },
                     onCapturePhoto = { viewModel.capturePhoto() },
-                    onEffectClick = { viewModel.navigateTo(Screen.EFFECT_PICKER) },
+                    onEffectClick = { 
+                        hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                        viewModel.navigateTo(Screen.EFFECT_PICKER) 
+                    },
                     onEffectSettingsClick = { viewModel.navigateTo(Screen.EFFECT_SETTINGS) },
                     onParamClick = { paramName -> viewModel.navigateToEffectSettings(paramName) },
                     onColorClick = { viewModel.navigateTo(Screen.COLOR_PICKER) },
@@ -70,10 +79,30 @@ fun MainScreen(
                 EffectPickerScreen(
                     currentEffect = currentEffect,
                     onEffectSelected = { effect ->
+                        hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
                         viewModel.selectEffect(effect)
                         viewModel.navigateBack()
                     },
-                    onBackClick = { viewModel.navigateBack() }
+                    onBackClick = { 
+                        hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                        viewModel.navigateBack() 
+                    },
+                    // ASCII-эффект для отображения в реальном времени
+                    asciiText = asciiResult,
+                    backgroundColor = colorState.background,
+                    textColor = run {
+                        val symbols = colorState.symbols
+                        when (symbols) {
+                            is SymbolPaint.Solid -> symbols.color
+                            is SymbolPaint.Gradient -> Color.Unspecified // Специальный маркер для градиента
+                        }
+                    },
+                    colorState = colorState,
+                    // Кнопки камеры
+                    cameraFacing = cameraFacing,
+                    captureState = captureState,
+                    onToggleCamera = { viewModel.toggleCamera() },
+                    onCapturePhoto = { viewModel.capturePhoto() }
                 )
             }
                 Screen.EFFECT_SETTINGS -> {
@@ -354,57 +383,95 @@ private fun ControlPanel(
 private fun EffectPickerScreen(
     currentEffect: EffectType,
     onEffectSelected: (EffectType) -> Unit,
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    // ASCII-эффект для отображения в реальном времени
+    asciiText: String,
+    backgroundColor: Color,
+    textColor: Color,
+    colorState: ColorState,
+    // Кнопки камеры
+    cameraFacing: CameraFacing,
+    captureState: CaptureState,
+    onToggleCamera: () -> Unit,
+    onCapturePhoto: () -> Unit
 ) {
-    // Модальное окно с ограниченной высотой - показываем эффект под собой
+    // Полноэкранный режим с ASCII-эффектом и выбором эффектов поверх
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xFF5E5E5E)),  // Серый фон как основной экран
-        contentAlignment = Alignment.BottomCenter
+        modifier = Modifier.fillMaxSize()
     ) {
+        // ASCII-эффект на весь экран (как на главном экране)
+        ASCIIPreview(
+            asciiText = asciiText,
+            backgroundColor = backgroundColor,
+            textColor = textColor,
+            colorState = colorState,
+            modifier = Modifier.fillMaxSize()
+        )
+        
+        // Кнопки камеры поверх ASCII-эффекта
+        CameraButtonsBlock(
+            cameraFacing = cameraFacing,
+            captureState = captureState,
+            onToggleCamera = onToggleCamera,
+            onCapturePhoto = onCapturePhoto,
+            modifier = Modifier.align(Alignment.BottomCenter)
+        )
+        
+        // Панель выбора эффектов внизу экрана (точно как MainSettingsPanel)
         Column(
             modifier = Modifier
+                .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .height(200.dp) // Ограниченная высота
+                .height(160.dp) // 144dp (MainSettingsPanel) + 16dp (дополнительный отступ)
                 .background(Color.Black)  // Черная панель эффектов
-                .padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .padding(12.dp) // Точно такой же padding как в MainSettingsPanel
+                .padding(bottom = 16.dp), // Точно такой же дополнительный отступ как у MainSettingsPanel
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // Заголовок с кнопкой назад
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "ВЫБОР ЭФФЕКТА",
-                    style = AppTypography.head1,
-                    color = AppColors.White
-                )
-                
-                IconButton(onClick = onBackClick) {
-                    Icon(
-                        imageVector = ImageVector.vectorResource(R.drawable.ic_arrow_back),
-                        contentDescription = "Назад",
-                        tint = AppColors.White
-                    )
-                }
-            }
-            
-            // Горизонтальный список эффектов
+            // Горизонтальный скролл с табами эффектов
             LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                contentPadding = PaddingValues(horizontal = 0.dp)
             ) {
                 items(EffectType.values().size) { index ->
                     val effect = EffectType.values()[index]
-                    EffectButton(
-                        effectName = effect.displayName,
-                        icon = ImageVector.vectorResource(effect.iconRes),
-                        isSelected = currentEffect == effect,
-                        onClick = { onEffectSelected(effect) },
-                        modifier = Modifier.width(80.dp)
-                    )
+                    val isSelected = effect == currentEffect
+                    
+                    Box(
+                        modifier = Modifier
+                            .width(88.dp) // Фиксированная ширина для табов (+8dp)
+                            .height(120.dp) // Высота содержимого без padding (160dp - 12dp - 16dp - 12dp = 120dp)
+                            .clip(RoundedCornerShape(12.dp)) // Такой же радиус как в MainSettingsPanel
+                            .background(
+                                if (isSelected) AppColors.GreyActive else AppColors.MainGrey
+                            )
+                            .clickable { onEffectSelected(effect) }
+                            .padding(12.dp), // Такой же padding как в MainSettingsPanel
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(
+                                imageVector = ImageVector.vectorResource(effect.iconRes),
+                                contentDescription = effect.displayName,
+                                tint = AppColors.White,
+                                modifier = Modifier.size(16.dp) // Такая же иконка как в MainSettingsPanel
+                            )
+                            
+                            Text(
+                                text = effect.displayName,
+                                style = AppTypography.body1.copy(
+                                    fontSize = 12.sp, // Такой же размер как в MainSettingsPanel
+                                    fontWeight = FontWeight.Medium
+                                ),
+                                color = AppColors.White,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
                 }
             }
         }
