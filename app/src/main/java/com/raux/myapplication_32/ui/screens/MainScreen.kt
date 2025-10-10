@@ -142,18 +142,10 @@ fun MainScreen(
                     )
                 }
                     Screen.COLOR_PICKER -> {
-                        ColorPickerScreen(
+                        ColorPickerBlockScreen(
                             colorState = colorState,
-                            selectedMode = when (colorState.symbols) {
-                                is SymbolPaint.Solid -> "SOLID"
-                                is SymbolPaint.Gradient -> "GRADIENT"
-                            },
-                            onModeSelected = { mode ->
-                                when (mode) {
-                                    "SOLID" -> viewModel.updateSymbolColor(AppColors.White)
-                                    "GRADIENT" -> viewModel.updateSymbolGradient(AppColors.White, AppColors.Black)
-                                }
-                            },
+                            asciiText = asciiResult,
+                            asciiFontSize = asciiFontSize,
                             onBackgroundColorChanged = viewModel::updateBackgroundColor,
                             onSymbolColorChanged = viewModel::updateSymbolColor,
                             onGradientChanged = { start, end -> viewModel.updateSymbolGradient(start, end) },
@@ -475,5 +467,51 @@ private fun EffectPickerScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun ColorPickerBlockScreen(
+    colorState: ColorState,
+    asciiText: String,
+    asciiFontSize: Float,
+    onBackgroundColorChanged: (Color) -> Unit,
+    onSymbolColorChanged: (Color) -> Unit,
+    onGradientChanged: (Color, Color) -> Unit,
+    onBackClick: () -> Unit
+) {
+    var selectedTab by remember { mutableStateOf(ColorTab.BACKGROUND) }
+    
+    // Полноэкранный режим с ASCII-эффектом и блоком выбора цвета поверх
+    Box(
+        modifier = Modifier.fillMaxSize()
+    ) {
+        // ASCII-эффект на весь экран (как на главном экране)
+        ASCIIPreview(
+            asciiText = asciiText,
+            backgroundColor = colorState.background,
+            textColor = run {
+                val symbols = colorState.symbols
+                when (symbols) {
+                    is SymbolPaint.Solid -> symbols.color
+                    is SymbolPaint.Gradient -> Color.Unspecified // Специальный маркер для градиента
+                }
+            },
+            colorState = colorState,
+            fontSize = asciiFontSize,
+            modifier = Modifier.fillMaxSize()
+        )
+
+        // Блок выбора цвета внизу экрана
+        ColorPickerBlock(
+            colorState = colorState,
+            selectedTab = selectedTab,
+            onTabSelected = { selectedTab = it },
+            onBackgroundColorChanged = onBackgroundColorChanged,
+            onSymbolColorChanged = onSymbolColorChanged,
+            onGradientChanged = onGradientChanged,
+            onBackClick = onBackClick,
+            modifier = Modifier.align(Alignment.BottomCenter)
+        )
     }
 }
