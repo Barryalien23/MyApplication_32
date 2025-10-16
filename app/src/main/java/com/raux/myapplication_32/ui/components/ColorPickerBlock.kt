@@ -21,6 +21,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
@@ -109,6 +110,23 @@ private fun ColorTabs(
         ColorTab.values().forEach { tab ->
             val isSelected = tab == selectedTab
             
+            // Получаем актуальный цвет для каждого таба
+            val tabColor = when (tab) {
+                ColorTab.BACKGROUND -> colorState.background
+                ColorTab.COLOR1 -> {
+                    when (val symbols = colorState.symbols) {
+                        is SymbolPaint.Solid -> symbols.color
+                        is SymbolPaint.Gradient -> symbols.start
+                    }
+                }
+                ColorTab.GRADIENT -> {
+                    when (val symbols = colorState.symbols) {
+                        is SymbolPaint.Solid -> symbols.color
+                        is SymbolPaint.Gradient -> symbols.start
+                    }
+                }
+            }
+            
             Box(
                 modifier = Modifier
                     .weight(1f)
@@ -125,9 +143,16 @@ private fun ColorTabs(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Индикатор цвета
+                    // Индикатор цвета с актуальным цветом
                     ColorIndicator(
-                        colorState = colorState,
+                        colorState = ColorState(
+                            background = tabColor,
+                            symbols = when (tab) {
+                                ColorTab.BACKGROUND -> SymbolPaint.Solid(tabColor)
+                                ColorTab.COLOR1 -> SymbolPaint.Solid(tabColor)
+                                ColorTab.GRADIENT -> colorState.symbols
+                            }
+                        ),
                         isSelected = isSelected,
                         modifier = Modifier.size(16.dp)
                     )
@@ -161,85 +186,57 @@ private fun HSVColorPicker(
     var hue by remember { mutableStateOf(0f) }
     var saturation by remember { mutableStateOf(1f) }
     var value by remember { mutableStateOf(1f) }
-    
-    // Обновляем значения при изменении выбранного таба
-    LaunchedEffect(selectedTab, colorState) {
-        val currentColor = when (selectedTab) {
+    var alpha by remember { mutableStateOf(1f) }
+
+    // ⬇️ перезапускаем ТОЛЬКО при смене таба
+    LaunchedEffect(selectedTab) {
+        val current = when (selectedTab) {
             ColorTab.BACKGROUND -> colorState.background
-            ColorTab.COLOR1 -> {
-                when (val symbols = colorState.symbols) {
-                    is SymbolPaint.Solid -> symbols.color
-                    is SymbolPaint.Gradient -> symbols.start
-                }
-            }
-            ColorTab.GRADIENT -> {
-                when (val symbols = colorState.symbols) {
-                    is SymbolPaint.Solid -> symbols.color
-                    is SymbolPaint.Gradient -> symbols.start
-                }
+            ColorTab.COLOR1, ColorTab.GRADIENT -> when (val s = colorState.symbols) {
+                is SymbolPaint.Solid -> s.color
+                is SymbolPaint.Gradient -> s.start
             }
         }
-        
-        // Конвертируем Color в HSV
         val hsv = FloatArray(3)
-        android.graphics.Color.colorToHSV(currentColor.toArgb(), hsv)
-        hue = hsv[0]
-        saturation = hsv[1]
-        value = hsv[2]
+        android.graphics.Color.colorToHSV(current.toArgb(), hsv)
+        hue = hsv[0]; saturation = hsv[1]; value = hsv[2]; alpha = current.alpha
     }
-    
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        // Панель насыщенности/яркости и полоса прозрачности
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            // Основная панель насыщенности/яркости
+
+    // ⬇️ стабилизируем ссылку на коллбэк (чтобы pointerInput был с ключом Unit)
+    val applyColor by rememberUpdatedState(onColorChanged)
+
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             SaturationValuePanel(
                 hue = hue,
                 saturation = saturation,
                 value = value,
-                onSaturationValueChanged = { newSaturation, newValue ->
-                    saturation = newSaturation
-                    value = newValue
-                    val newColor = Color.hsv(hue, saturation, value)
-                    onColorChanged(newColor)
+                onSaturationValueChanged = { s, v ->
+                    saturation = s; value = v
+                    applyColor(Color.hsv(hue, saturation, value, alpha))
                 },
                 modifier = Modifier.weight(1f)
             )
-            
-            // Полоса прозрачности
             OpacitySlider(
-                opacity = 1f, // Пока фиксированная прозрачность
-                onOpacityChanged = { /* TODO: Реализовать прозрачность */ },
+                baseColor = Color.hsv(hue, saturation, value),
+                opacity = alpha,
+                onOpacityChanged = { a ->
+                    alpha = a
+                    applyColor(Color.hsv(hue, saturation, value, alpha))
+                },
                 modifier = Modifier.width(40.dp)
             )
         }
-        
-        // Полоса тона и кнопка назад
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            // Полоса тона (Hue)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             HueSlider(
                 hue = hue,
-                onHueChanged = { newHue ->
-                    hue = newHue
-                    val newColor = Color.hsv(hue, saturation, value)
-                    onColorChanged(newColor)
+                onHueChanged = { h ->
+                    hue = h
+                    applyColor(Color.hsv(hue, saturation, value, alpha))
                 },
                 modifier = Modifier.weight(1f)
             )
-            
-            // Кнопка назад
-            BackButton(
-                onClick = onBackClick,
-                modifier = Modifier.size(40.dp)
-            )
+            BackButton(onClick = onBackClick, modifier = Modifier.size(40.dp))
         }
     }
 }
@@ -255,58 +252,58 @@ private fun SaturationValuePanel(
     onSaturationValueChanged: (Float, Float) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val hapticFeedback = LocalHapticFeedback.current
-    val density = LocalDensity.current
-    
+    val haptic = LocalHapticFeedback.current
+    val onSV by rememberUpdatedState(onSaturationValueChanged)
+    var sizePx by remember { mutableStateOf(androidx.compose.ui.unit.IntSize.Zero) }
+
+    fun compute(p: Offset): Pair<Float, Float>? {
+        if (sizePx.width == 0 || sizePx.height == 0) return null
+        val s = (p.x / sizePx.width).coerceIn(0f, 1f)
+        val v = (1f - p.y / sizePx.height).coerceIn(0f, 1f)
+        return s to v
+    }
+
     Box(
         modifier = modifier
             .height(118.dp)
             .clip(RoundedCornerShape(12.dp))
-            .background(
-                brush = Brush.horizontalGradient(
-                    colors = listOf(
-                        Color.White,
-                        Color.hsv(hue, 1f, 1f)
-                    )
-                )
-            )
+            .background(Brush.horizontalGradient(listOf(Color.White, Color.hsv(hue, 1f, 1f))))
+            .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black)))
+            .onGloballyPositioned { sizePx = it.size }
+            // ⬇️ стабильный ключ
             .pointerInput(Unit) {
-                detectTapGestures { offset ->
-                    val panelWidth = with(density) { size.width.toDp().value }
-                    val panelHeight = with(density) { size.height.toDp().value }
-                    val newSaturation = (offset.x / panelWidth).coerceIn(0f, 1f)
-                    val newValue = 1f - (offset.y / panelHeight).coerceIn(0f, 1f)
-                    hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                    onSaturationValueChanged(newSaturation, newValue)
+                detectTapGestures { p ->
+                    compute(p)?.let { (s, v) ->
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onSV(s, v)
+                    }
                 }
             }
             .pointerInput(Unit) {
                 detectDragGestures(
-                    onDragStart = { 
-                        hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onDragStart = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                     }
-                ) { _, _ ->
-                    // TODO: Реализовать перетаскивание
+                ) { change, _ ->
+                    change.consume() // ⬅️ предотвращаем конкуренцию жестов
+                    compute(change.position)?.let { (s, v) -> onSV(s, v) }
                 }
             }
     ) {
-        // Индикатор текущей позиции
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .offset(
-                    x = (saturation * (118 - 40)).dp,
-                    y = ((1f - value) * (118 - 40)).dp
-                )
-                .size(40.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(Color.Transparent)
-                .border(
-                    width = 3.dp,
-                    color = Color.White,
-                    shape = RoundedCornerShape(12.dp)
-                )
-        )
+        // индикатор — без изменений
+        if (sizePx.width > 0 && sizePx.height > 0) {
+            val handle = 40.dp
+            val handlePx = with(LocalDensity.current) { handle.toPx() }
+            val x = (saturation * sizePx.width - handlePx / 2).coerceIn(0f, sizePx.width - handlePx)
+            val y = ((1f - value) * sizePx.height - handlePx / 2).coerceIn(0f, sizePx.height - handlePx)
+            Box(
+                Modifier
+                    .offset { androidx.compose.ui.unit.IntOffset(x.toInt(), y.toInt()) }
+                    .size(handle)
+                    .clip(RoundedCornerShape(12.dp))
+                    .border(3.dp, Color.White, RoundedCornerShape(12.dp))
+            )
+        }
     }
 }
 
@@ -315,37 +312,56 @@ private fun SaturationValuePanel(
  */
 @Composable
 private fun OpacitySlider(
+    baseColor: Color,
     opacity: Float,
     onOpacityChanged: (Float) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val onAlpha by rememberUpdatedState(onOpacityChanged)
+    val haptic = LocalHapticFeedback.current
+    var sizePx by remember { mutableStateOf(androidx.compose.ui.unit.IntSize.Zero) }
+
+    fun compute(p: Offset): Float? {
+        if (sizePx.height == 0) return null
+        return (1f - p.y / sizePx.height).coerceIn(0f, 1f)
+    }
+
     Box(
         modifier = modifier
             .height(118.dp)
             .clip(RoundedCornerShape(12.dp))
-            .background(
-                brush = Brush.verticalGradient(
-                    colors = listOf(
-                        Color.Red.copy(alpha = 1f),
-                        Color.Red.copy(alpha = 0f)
-                    )
-                )
-            )
+            .background(Brush.verticalGradient(listOf(baseColor.copy(alpha = 1f), baseColor.copy(alpha = 0f))))
+            .onGloballyPositioned { sizePx = it.size }
+            .pointerInput(Unit) {
+                detectTapGestures { p ->
+                    compute(p)?.let {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onAlpha(it)
+                    }
+                }
+            }
+            .pointerInput(Unit) {
+                detectDragGestures(
+                    onDragStart = { haptic.performHapticFeedback(HapticFeedbackType.LongPress) }
+                ) { change, _ ->
+                    change.consume()
+                    compute(change.position)?.let { onAlpha(it) }
+                }
+            }
     ) {
-        // Индикатор текущей прозрачности
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .offset(y = (opacity * (118 - 40)).dp)
-                .size(40.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(Color.Transparent)
-                .border(
-                    width = 3.dp,
-                    color = Color.White,
-                    shape = RoundedCornerShape(12.dp)
-                )
-        )
+        if (sizePx.height > 0) {
+            val handle = 40.dp
+            val handlePx = with(LocalDensity.current) { handle.toPx() }
+            val y = ((1f - opacity) * sizePx.height - handlePx / 2).coerceIn(0f, sizePx.height - handlePx)
+            Box(
+                Modifier
+                    .align(Alignment.TopCenter)
+                    .offset { androidx.compose.ui.unit.IntOffset(0, y.toInt()) }
+                    .size(handle)
+                    .clip(RoundedCornerShape(12.dp))
+                    .border(3.dp, Color.White, RoundedCornerShape(12.dp))
+            )
+        }
     }
 }
 
@@ -358,49 +374,55 @@ private fun HueSlider(
     onHueChanged: (Float) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val hapticFeedback = LocalHapticFeedback.current
-    val density = LocalDensity.current
-    
+    val haptic = LocalHapticFeedback.current
+    val onHue by rememberUpdatedState(onHueChanged)
+    var sizePx by remember { mutableStateOf(androidx.compose.ui.unit.IntSize.Zero) }
+
+    fun compute(p: Offset): Float? {
+        if (sizePx.width == 0) return null
+        return (p.x / sizePx.width * 360f).coerceIn(0f, 360f)
+    }
+
     Box(
         modifier = modifier
             .height(40.dp)
             .clip(RoundedCornerShape(12.dp))
             .background(
-                brush = Brush.horizontalGradient(
-                    colors = listOf(
-                        Color.Red,
-                        Color.Yellow,
-                        Color.Green,
-                        Color.Cyan,
-                        Color.Blue,
-                        Color.Magenta,
-                        Color.Red
-                    )
+                Brush.horizontalGradient(
+                    listOf(Color.Red, Color.Yellow, Color.Green, Color.Cyan, Color.Blue, Color.Magenta, Color.Red)
                 )
             )
+            .onGloballyPositioned { sizePx = it.size }
             .pointerInput(Unit) {
-                detectTapGestures { offset ->
-                    val sliderWidth = with(density) { size.width.toDp().value }
-                    val newHue = (offset.x / sliderWidth * 360f).coerceIn(0f, 360f)
-                    hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                    onHueChanged(newHue)
+                detectTapGestures { p ->
+                    compute(p)?.let {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onHue(it)
+                    }
+                }
+            }
+            .pointerInput(Unit) {
+                detectDragGestures(
+                    onDragStart = { haptic.performHapticFeedback(HapticFeedbackType.LongPress) }
+                ) { change, _ ->
+                    change.consume()
+                    compute(change.position)?.let { onHue(it) }
                 }
             }
     ) {
-        // Индикатор текущего тона
-        Box(
-            modifier = Modifier
-                .align(Alignment.CenterStart)
-                .offset(x = (hue / 360f * 200).dp) // Фиксированная ширина для примера
-                .size(40.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(Color.Transparent)
-                .border(
-                    width = 3.dp,
-                    color = Color.White,
-                    shape = RoundedCornerShape(12.dp)
-                )
-        )
+        if (sizePx.width > 0) {
+            val handle = 40.dp
+            val handlePx = with(LocalDensity.current) { handle.toPx() }
+            val x = (hue / 360f * sizePx.width - handlePx / 2).coerceIn(0f, sizePx.width - handlePx)
+            Box(
+                Modifier
+                    .align(Alignment.CenterStart)
+                    .offset { androidx.compose.ui.unit.IntOffset(x.toInt(), 0) }
+                    .size(handle)
+                    .clip(RoundedCornerShape(12.dp))
+                    .border(3.dp, Color.White, RoundedCornerShape(12.dp))
+            )
+        }
     }
 }
 
