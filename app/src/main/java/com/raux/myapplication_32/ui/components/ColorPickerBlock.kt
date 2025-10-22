@@ -12,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -48,51 +49,65 @@ fun ColorPickerBlock(
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val hapticFeedback = LocalHapticFeedback.current
-    
+    val haptic = LocalHapticFeedback.current
+    // ⬇️ активный стоп для градиента
+    var activeStop by rememberSaveable { mutableStateOf(GradientStop.START) }
+
+    // Удобные текущие значения градиента из state
+    val (gradStart, gradEnd) = when (val s = colorState.symbols) {
+        is SymbolPaint.Gradient -> s.start to s.end
+        is SymbolPaint.Solid    -> s.color to s.color
+    }
+
     Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(266.dp) // Фиксированная высота как в дизайне
-            .background(Color.Black)
-            .padding(12.dp),
+        modifier = modifier.fillMaxWidth().height(266.dp).background(Color.Black).padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        // Табы выбора типа цвета
         ColorTabs(
             colorState = colorState,
             selectedTab = selectedTab,
             onTabSelected = { tab ->
-                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                 onTabSelected(tab)
             }
         )
-        
-        // HSV цветовой пикер
+
+        // ⬇️ Плашка с двумя "пикерами" только в режиме градиента
+        if (selectedTab == ColorTab.GRADIENT) {
+            GradientStopBar(
+                start = gradStart,
+                end = gradEnd,
+                active = activeStop,
+                onActiveChange = { activeStop = it },
+                modifier = Modifier.fillMaxWidth().height(40.dp)
+            )
+        }
+
         HSVColorPicker(
             colorState = colorState,
             selectedTab = selectedTab,
+            // ⬇️ применяем цвет в нужное место
             onColorChanged = { color ->
                 when (selectedTab) {
                     ColorTab.BACKGROUND -> onBackgroundColorChanged(color)
-                    ColorTab.COLOR1 -> onSymbolColorChanged(color)
-                    ColorTab.GRADIENT -> {
-                        val currentSymbols = colorState.symbols
-                        if (currentSymbols is SymbolPaint.Gradient) {
-                            onGradientChanged(color, currentSymbols.end)
-                        } else {
-                            onGradientChanged(color, color)
-                        }
+                    ColorTab.COLOR1     -> onSymbolColorChanged(color)
+                    ColorTab.GRADIENT   -> when (activeStop) {
+                        GradientStop.START -> onGradientChanged(color, gradEnd)
+                        GradientStop.END   -> onGradientChanged(gradStart, color)
                     }
                 }
             },
+            // ⬇️ для инициализации HSV (см. ниже)
+            activeGradientStop = activeStop,
             onBackClick = {
-                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                 onBackClick()
             }
         )
     }
 }
+
+private fun defaultWhite() = Color.White
 
 /**
  * Табы для выбора типа цвета
@@ -103,69 +118,58 @@ private fun ColorTabs(
     selectedTab: ColorTab,
     onTabSelected: (ColorTab) -> Unit
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         ColorTab.values().forEach { tab ->
             val isSelected = tab == selectedTab
-            
-            // Получаем актуальный цвет для каждого таба
-            val tabColor = when (tab) {
-                ColorTab.BACKGROUND -> colorState.background
-                ColorTab.COLOR1 -> {
-                    when (val symbols = colorState.symbols) {
-                        is SymbolPaint.Solid -> symbols.color
-                        is SymbolPaint.Gradient -> symbols.start
+
+            val indicatorContent: @Composable () -> Unit = {
+                when (tab) {
+                    ColorTab.BACKGROUND -> {
+                        val c = if (isSelected) colorState.background else defaultWhite()
+                        Box(Modifier.size(16.dp).clip(CircleShape)
+                            .border(1.dp, AppColors.White, CircleShape)
+                            .background(c, CircleShape))
                     }
-                }
-                ColorTab.GRADIENT -> {
-                    when (val symbols = colorState.symbols) {
-                        is SymbolPaint.Solid -> symbols.color
-                        is SymbolPaint.Gradient -> symbols.start
+                    ColorTab.COLOR1 -> {
+                        val c = if (isSelected)
+                            when (val s = colorState.symbols) {
+                                is SymbolPaint.Solid -> s.color
+                                is SymbolPaint.Gradient -> s.start
+                            }
+                        else defaultWhite()
+                        Box(Modifier.size(16.dp).clip(CircleShape)
+                            .border(1.dp, AppColors.White, CircleShape)
+                            .background(c, CircleShape))
+                    }
+                    ColorTab.GRADIENT -> {
+                        val (start, end) = when (val s = colorState.symbols) {
+                            is SymbolPaint.Gradient -> s.start to s.end
+                            is SymbolPaint.Solid    -> Color.White to Color.White
+                        }
+                        val brush = if (isSelected)
+                            Brush.horizontalGradient(listOf(start, end))
+                        else Brush.horizontalGradient(listOf(Color.White, Color.White))
+                        Box(Modifier.size(16.dp).clip(CircleShape)
+                            .border(1.dp, AppColors.White, CircleShape)
+                            .background(brush))
                     }
                 }
             }
-            
+
             Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .height(32.dp)
+                modifier = Modifier.weight(1f).height(32.dp)
                     .clip(RoundedCornerShape(8.dp))
-                    .background(
-                        if (isSelected) AppColors.GreyActive else AppColors.MainGrey
-                    )
+                    .background(if (isSelected) AppColors.GreyActive else AppColors.MainGrey)
                     .clickable { onTabSelected(tab) }
-                    .padding(horizontal = 8.dp, vertical = 8.dp),
+                    .padding(horizontal = 8.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Индикатор цвета с актуальным цветом
-                    ColorIndicator(
-                        colorState = ColorState(
-                            background = tabColor,
-                            symbols = when (tab) {
-                                ColorTab.BACKGROUND -> SymbolPaint.Solid(tabColor)
-                                ColorTab.COLOR1 -> SymbolPaint.Solid(tabColor)
-                                ColorTab.GRADIENT -> colorState.symbols
-                            }
-                        ),
-                        isSelected = isSelected,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    
-                    // Текст таба
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    indicatorContent()
                     Text(
                         text = tab.displayName,
-                        style = AppTypography.body1.copy(
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold
-                        ),
-                        color = if (isSelected) AppColors.White else AppColors.White.copy(alpha = 0.4f),
-                        textAlign = TextAlign.Center
+                        style = AppTypography.body1.copy(fontSize = 12.sp, fontWeight = FontWeight.SemiBold),
+                        color = if (isSelected) AppColors.White else AppColors.White.copy(alpha = 0.4f)
                     )
                 }
             }
@@ -181,6 +185,7 @@ private fun HSVColorPicker(
     colorState: ColorState,
     selectedTab: ColorTab,
     onColorChanged: (Color) -> Unit,
+    activeGradientStop: GradientStop? = null,
     onBackClick: () -> Unit
 ) {
     var hue by remember { mutableStateOf(0f) }
@@ -188,13 +193,23 @@ private fun HSVColorPicker(
     var value by remember { mutableStateOf(1f) }
     var alpha by remember { mutableStateOf(1f) }
 
-    // ⬇️ перезапускаем ТОЛЬКО при смене таба
-    LaunchedEffect(selectedTab) {
+    // берем цвет источника только когда:
+    // - сменился таб
+    // - в табе градиента сменился активный стоп
+    LaunchedEffect(selectedTab, activeGradientStop) {
         val current = when (selectedTab) {
             ColorTab.BACKGROUND -> colorState.background
-            ColorTab.COLOR1, ColorTab.GRADIENT -> when (val s = colorState.symbols) {
+            ColorTab.COLOR1 -> when (val s = colorState.symbols) {
                 is SymbolPaint.Solid -> s.color
                 is SymbolPaint.Gradient -> s.start
+            }
+            ColorTab.GRADIENT -> {
+                val s = colorState.symbols
+                val (start, end) = when (s) {
+                    is SymbolPaint.Gradient -> s.start to s.end
+                    is SymbolPaint.Solid    -> s.color to s.color
+                }
+                if (activeGradientStop == GradientStop.END) end else start
             }
         }
         val hsv = FloatArray(3)
@@ -202,7 +217,6 @@ private fun HSVColorPicker(
         hue = hsv[0]; saturation = hsv[1]; value = hsv[2]; alpha = current.alpha
     }
 
-    // ⬇️ стабилизируем ссылку на коллбэк (чтобы pointerInput был с ключом Unit)
     val applyColor by rememberUpdatedState(onColorChanged)
 
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -457,4 +471,68 @@ enum class ColorTab(val displayName: String) {
     BACKGROUND("bg Color"),
     COLOR1("color #1"),
     GRADIENT("gradient")
+}
+
+/**
+ * Активный стоп градиента
+ */
+enum class GradientStop { START, END }
+
+/**
+ * Шкала выбора активного стопа градиента
+ */
+@Composable
+private fun GradientStopBar(
+    start: Color,
+    end: Color,
+    active: GradientStop,
+    onActiveChange: (GradientStop) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val haptics = LocalHapticFeedback.current
+    var sizePx by remember { mutableStateOf(androidx.compose.ui.unit.IntSize.Zero) }
+
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(Brush.horizontalGradient(listOf(start, end)))
+            .onGloballyPositioned { sizePx = it.size }
+            .pointerInput(Unit) {
+                detectTapGestures { p ->
+                    // простая логика выбора: ближе к левому/правому краю
+                    val isEnd = p.x > sizePx.width / 2f
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onActiveChange(if (isEnd) GradientStop.END else GradientStop.START)
+                }
+            }
+            .padding(horizontal = 8.dp)
+    ) {
+        // Левый хэндл (START)
+        Handle(
+            isActive = active == GradientStop.START,
+            modifier = Modifier.align(Alignment.CenterStart)
+        )
+        // Правый хэндл (END)
+        Handle(
+            isActive = active == GradientStop.END,
+            modifier = Modifier.align(Alignment.CenterEnd)
+        )
+    }
+}
+
+/**
+ * Хэндл для выбора стопа градиента
+ */
+@Composable
+private fun Handle(isActive: Boolean, modifier: Modifier = Modifier) {
+    Box(
+        modifier
+            .size(28.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .border(
+                width = if (isActive) 3.dp else 2.dp,
+                color = if (isActive) AppColors.White else AppColors.White.copy(alpha = .6f),
+                shape = RoundedCornerShape(8.dp)
+            )
+    )
 }
