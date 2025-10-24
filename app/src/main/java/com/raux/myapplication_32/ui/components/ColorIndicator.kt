@@ -36,7 +36,6 @@ fun ColorIndicator(
         modifier = modifier
             .size(16.dp)
             .clip(CircleShape)
-            .background(color)
             .border(
                 width = 1.dp,
                 color = AppColors.White.copy(alpha = alpha),
@@ -44,21 +43,25 @@ fun ColorIndicator(
             ),
         contentAlignment = Alignment.Center
     ) {
-        // Для градиента показываем специальный индикатор
-        if (colorState.symbols is SymbolPaint.Gradient) {
-            Box(
-                modifier = Modifier
-                    .size(10.dp)
-                    .clip(CircleShape)
-                    .background(
-                        brush = Brush.horizontalGradient(
+        // Внутренний круг с отступом
+        Box(
+            modifier = Modifier
+                .size(10.dp)
+                .clip(CircleShape)
+                .background(
+                    brush = when (colorState.symbols) {
+                        is SymbolPaint.Gradient -> Brush.horizontalGradient(
                             colors = listOf(
-                                (colorState.symbols as SymbolPaint.Gradient).start,
-                                (colorState.symbols as SymbolPaint.Gradient).end
+                                colorState.symbols.start,
+                                colorState.symbols.end
                             )
                         )
-                    )
-            )
-        }
+                        is SymbolPaint.Solid -> Brush.radialGradient(
+                            colors = listOf(color, color)
+                        )
+                    }
+                )
+        )
     }
 }
+

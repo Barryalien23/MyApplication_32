@@ -130,33 +130,56 @@ private fun ColorTabs(
             val indicatorContent: @Composable () -> Unit = {
                 when (tab) {
                     ColorTab.BACKGROUND -> {
-                        val c = if (isSelected) colorState.background else defaultWhite()
-                        Box(Modifier.size(16.dp).clip(CircleShape)
-                            .border(1.dp, AppColors.White, CircleShape)
-                            .background(c, CircleShape))
+                        val c = colorState.background
+                        Box(
+                            modifier = Modifier.size(16.dp).clip(CircleShape)
+                                .border(1.dp, AppColors.White, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(10.dp)
+                                    .clip(CircleShape)
+                                    .background(c, CircleShape)
+                            )
+                        }
                     }
                     ColorTab.COLOR1 -> {
-                        val c = if (isSelected)
-                            when (val s = colorState.symbols) {
-                                is SymbolPaint.Solid -> s.color
-                                is SymbolPaint.Gradient -> s.start
-                            }
-                        else defaultWhite()
-                        Box(Modifier.size(16.dp).clip(CircleShape)
-                            .border(1.dp, AppColors.White, CircleShape)
-                            .background(c, CircleShape))
+                        val c = when (val s = colorState.symbols) {
+                            is SymbolPaint.Solid -> s.color
+                            is SymbolPaint.Gradient -> defaultWhite() // Если выбран градиент, то COLOR1 сбрасывается
+                        }
+                        Box(
+                            modifier = Modifier.size(16.dp).clip(CircleShape)
+                                .border(1.dp, AppColors.White, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(10.dp)
+                                    .clip(CircleShape)
+                                    .background(c, CircleShape)
+                            )
+                        }
                     }
                     ColorTab.GRADIENT -> {
                         val (start, end) = when (val s = colorState.symbols) {
                             is SymbolPaint.Gradient -> s.start to s.end
-                            is SymbolPaint.Solid    -> Color.White to Color.White
+                            is SymbolPaint.Solid    -> defaultWhite() to defaultWhite() // Если выбран Solid, то GRADIENT сбрасывается
                         }
-                        val brush = if (isSelected)
-                            Brush.horizontalGradient(listOf(start, end))
-                        else Brush.horizontalGradient(listOf(Color.White, Color.White))
-                        Box(Modifier.size(16.dp).clip(CircleShape)
-                            .border(1.dp, AppColors.White, CircleShape)
-                            .background(brush))
+                        val brush = Brush.horizontalGradient(listOf(start, end))
+                        Box(
+                            modifier = Modifier.size(16.dp).clip(CircleShape)
+                                .border(1.dp, AppColors.White, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(10.dp)
+                                    .clip(CircleShape)
+                                    .background(brush)
+                            )
+                        }
                     }
                 }
             }
@@ -475,9 +498,9 @@ private fun BackButton(
  * Типы табов для выбора цвета
  */
 enum class ColorTab(val displayName: String) {
-    BACKGROUND("bg Color"),
-    COLOR1("color #1"),
-    GRADIENT("gradient")
+    BACKGROUND("BG COLOR"),
+    COLOR1("COLOR #1"),
+    GRADIENT("GRADIENT")
 }
 
 /**

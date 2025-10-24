@@ -1,6 +1,7 @@
 package com.raux.myapplication_32.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
@@ -105,13 +106,13 @@ fun MainSettingsPanel(
                     colorName = "COLOR #1",
                     selectedColor = when (val symbols = colorState.symbols) {
                         is SymbolPaint.Solid -> symbols.color
-                        is SymbolPaint.Gradient -> symbols.start
+                        is SymbolPaint.Gradient -> Color.White // Если выбран градиент, то COLOR1 сбрасывается в белый
                     },
                     onClick = onColorClick,
                     modifier = Modifier.weight(1f)
                 )
                 MainGradientButton(
-                    isGradient = colorState.symbols is SymbolPaint.Gradient,
+                    colorState = colorState,
                     onClick = onColorClick,
                     modifier = Modifier.weight(1f)
                 )
@@ -149,7 +150,7 @@ private fun EffectButtonVertical(
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+            verticalArrangement = Arrangement.spacedBy(3.dp)
         ) {
             Icon(
                 imageVector = ImageVector.vectorResource(effect.iconRes),
@@ -267,14 +268,22 @@ private fun MainColorButton(
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+            verticalArrangement = Arrangement.spacedBy(3.dp)
         ) {
             Box(
                 modifier = Modifier
                     .size(16.dp)
                     .clip(RoundedCornerShape(8.dp))
-                    .background(selectedColor)
-            )
+                    .border(1.dp, AppColors.White, RoundedCornerShape(8.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(10.dp)
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(selectedColor)
+                )
+            }
             
             Text(
                 text = colorName,
@@ -294,7 +303,7 @@ private fun MainColorButton(
  */
 @Composable
 private fun MainGradientButton(
-    isGradient: Boolean,
+    colorState: ColorState,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -319,21 +328,31 @@ private fun MainGradientButton(
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+            verticalArrangement = Arrangement.spacedBy(3.dp)
         ) {
             Box(
                 modifier = Modifier
                     .size(16.dp)
                     .clip(RoundedCornerShape(8.dp))
-                    .background(
-                        brush = androidx.compose.ui.graphics.Brush.horizontalGradient(
-                            colors = listOf(
-                                AppColors.White,
-                                AppColors.White40
-                            )
+                    .border(1.dp, AppColors.White, RoundedCornerShape(8.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(10.dp)
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(
+                            brush = when (val symbols = colorState.symbols) {
+                                is SymbolPaint.Gradient -> androidx.compose.ui.graphics.Brush.horizontalGradient(
+                                    colors = listOf(symbols.start, symbols.end)
+                                )
+                                is SymbolPaint.Solid -> androidx.compose.ui.graphics.Brush.horizontalGradient(
+                                    colors = listOf(AppColors.White, AppColors.White40)
+                                )
+                            }
                         )
-                    )
-            )
+                )
+            }
             
             Text(
                 text = "GRADIENT",
