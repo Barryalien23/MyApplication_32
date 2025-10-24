@@ -312,8 +312,8 @@ class MainViewModel(
             bitmap.recycle()
             
             // МАСШТАБИРУЕМ ИЗОБРАЖЕНИЕ ДЛЯ ASCII - это ключевая оптимизация!
-            val maxWidth = 200  // Максимальная ширина для ASCII
-            val maxHeight = 150 // Максимальная высота для ASCII
+            val maxWidth = 300  // Максимальная ширина для ASCII
+            val maxHeight = 225 // Максимальная высота для ASCII
 
             val originalWidth = rotatedBitmap.width
             val originalHeight = rotatedBitmap.height

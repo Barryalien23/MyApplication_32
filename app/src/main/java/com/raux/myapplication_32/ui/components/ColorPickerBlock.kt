@@ -60,7 +60,11 @@ fun ColorPickerBlock(
     }
 
     Column(
-        modifier = modifier.fillMaxWidth().height(266.dp).background(Color.Black).padding(12.dp),
+        modifier = modifier
+            .fillMaxWidth()
+            .background(Color.Black)
+            .padding(12.dp)
+            .padding(bottom = 16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         ColorTabs(
@@ -102,7 +106,8 @@ fun ColorPickerBlock(
             onBackClick = {
                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                 onBackClick()
-            }
+            },
+            modifier = Modifier.fillMaxWidth()
         )
     }
 }
@@ -186,7 +191,8 @@ private fun HSVColorPicker(
     selectedTab: ColorTab,
     onColorChanged: (Color) -> Unit,
     activeGradientStop: GradientStop? = null,
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     var hue by remember { mutableStateOf(0f) }
     var saturation by remember { mutableStateOf(1f) }
@@ -219,7 +225,7 @@ private fun HSVColorPicker(
 
     val applyColor by rememberUpdatedState(onColorChanged)
 
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             SaturationValuePanel(
                 hue = hue,
@@ -444,6 +450,7 @@ private fun HueSlider(
  * Кнопка назад
  */
 @Composable
+@Suppress("DEPRECATION")
 private fun BackButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier

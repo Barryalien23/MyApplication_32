@@ -20,11 +20,10 @@ class ASCIIEngine {
     // Символы для разных эффектов
     private val shapeChars = mapOf(
         EffectType.ASCII to asciiChars.toList().map { it.toString() },
-        EffectType.SQUARES to listOf(" ", "▢", "▣", "▤", "▥", "▦", "▧", "▨", "▩", "█"),
-        EffectType.CIRCLES to listOf(" ", "○", "◔", "◑", "◕", "●", "◉", "◎", "◯", "●"),
-        EffectType.TRIANGLE to listOf(" ", "△", "▲", "▴", "▾", "◀", "▶", "◁", "▷", "▲"),
-        EffectType.DIAMONDS to listOf(" ", "◇", "◆", "◈", "◊", "♦", "♢", "♠", "♣", "♥"),
-        EffectType.SHAPES to listOf(" ", "▢", "○", "△", "◇", "▣", "◔", "▲", "◆", "█")
+        EffectType.SQUARES to listOf(" ", "▁","▂","▃","▄","▅","▆","▇","█"),
+        EffectType.CIRCLES to listOf(" ", "·","∙","•","●","⬤"),
+        EffectType.DIAMONDS to listOf(" ", "▖","▗","▘","▝","▚","▞","▙","▛","▜","▟","█"),
+        EffectType.SHAPES to listOf(" ", "▁", "·", "▖", "▂", "∙", "▗", "▃", "•", "▘")
     )
     
     // Счетчик для демонстрации изменений (отключен для производительности)

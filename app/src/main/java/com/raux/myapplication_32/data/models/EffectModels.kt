@@ -12,7 +12,6 @@ enum class EffectType(val displayName: String, @DrawableRes val iconRes: Int) {
     SHAPES("SHAPES", R.drawable.ic_effect_shapes), 
     CIRCLES("CIRCLES", R.drawable.ic_effect_circles),
     SQUARES("SQUARES", R.drawable.ic_effect_squares),
-    TRIANGLE("TRIANGLE", R.drawable.ic_effect_triangle),
     DIAMONDS("DIAMONDS", R.drawable.ic_effect_diamonds)
 }
 

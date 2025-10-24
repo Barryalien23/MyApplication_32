@@ -110,13 +110,6 @@ private fun DrawScope.drawEffect(
                     color = symbolColor,
                     params = params
                 )
-                EffectType.TRIANGLE -> drawTriangleEffect(
-                    x = finalX,
-                    y = finalY,
-                    size = cellSize,
-                    color = symbolColor,
-                    params = params
-                )
                 EffectType.DIAMONDS -> drawDiamondEffect(
                     x = finalX,
                     y = finalY,
@@ -200,30 +193,6 @@ private fun DrawScope.drawSquareEffect(
     )
 }
 
-private fun DrawScope.drawTriangleEffect(
-    x: Float,
-    y: Float,
-    size: Float,
-    color: Color,
-    params: EffectParams
-) {
-    val triangleSize = size * 0.6f * (1 + params.softy / 100f)
-    val centerX = x + size / 2
-    val centerY = y + size / 2
-    val halfSize = triangleSize / 2
-    
-    val path = Path().apply {
-        moveTo(centerX, centerY - halfSize)
-        lineTo(centerX - halfSize, centerY + halfSize)
-        lineTo(centerX + halfSize, centerY + halfSize)
-        close()
-    }
-    
-    drawPath(
-        path = path,
-        color = color
-    )
-}
 
 private fun DrawScope.drawDiamondEffect(
     x: Float,
@@ -260,11 +229,10 @@ private fun DrawScope.drawShapesEffect(
     seed: Int
 ) {
     // Случайно выбираем форму на основе seed
-    when (seed % 4) {
+    when (seed % 3) {
         0 -> drawCircleEffect(x, y, size, color, params)
         1 -> drawSquareEffect(x, y, size, color, params)
-        2 -> drawTriangleEffect(x, y, size, color, params)
-        3 -> drawDiamondEffect(x, y, size, color, params)
+        2 -> drawDiamondEffect(x, y, size, color, params)
     }
 }
 
