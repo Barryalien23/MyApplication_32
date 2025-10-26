@@ -37,7 +37,9 @@ fun MainSettingsPanel(
     onEffectClick: () -> Unit,
     onEffectSettingsClick: () -> Unit,
     onParamClick: (String) -> Unit,
-    onColorClick: () -> Unit,
+    onBackgroundColorClick: () -> Unit,
+    onSymbolColorClick: () -> Unit,
+    onGradientClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -99,7 +101,7 @@ fun MainSettingsPanel(
                 MainColorButton(
                     colorName = "BG COLOR",
                     selectedColor = colorState.background,
-                    onClick = onColorClick,
+                    onClick = onBackgroundColorClick,
                     modifier = Modifier.weight(1f)
                 )
                 MainColorButton(
@@ -108,12 +110,12 @@ fun MainSettingsPanel(
                         is SymbolPaint.Solid -> symbols.color
                         is SymbolPaint.Gradient -> Color.White // Если выбран градиент, то COLOR1 сбрасывается в белый
                     },
-                    onClick = onColorClick,
+                    onClick = onSymbolColorClick,
                     modifier = Modifier.weight(1f)
                 )
                 MainGradientButton(
                     colorState = colorState,
-                    onClick = onColorClick,
+                    onClick = onGradientClick,
                     modifier = Modifier.weight(1f)
                 )
             }

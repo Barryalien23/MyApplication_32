@@ -527,6 +527,11 @@ class MainViewModel(
         _currentScreen.value = Screen.EFFECT_SETTINGS
     }
     
+    fun navigateToColorPicker(colorType: String) {
+        _selectedEffectParam.value = colorType
+        _currentScreen.value = Screen.COLOR_PICKER
+    }
+    
     fun navigateBack() {
         _currentScreen.value = Screen.MAIN
         _selectedEffectParam.value = null // Reset selected param on back

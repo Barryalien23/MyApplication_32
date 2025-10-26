@@ -150,6 +150,7 @@ fun MainScreen(
                             colorState = colorState,
                             asciiText = asciiResult,
                             asciiFontSize = asciiFontSize,
+                            selectedColorType = selectedEffectParam ?: "background", // По умолчанию background
                             onBackgroundColorChanged = viewModel::updateBackgroundColor,
                             onSymbolColorChanged = viewModel::updateSymbolColor,
                             onGradientChanged = { start, end -> viewModel.updateSymbolGradient(start, end) },
@@ -265,7 +266,9 @@ private fun MainScreenContent(
                 onEffectClick = onEffectClick,
                 onEffectSettingsClick = onEffectSettingsClick,
                 onParamClick = onParamClick,
-                onColorClick = onColorClick,
+                onBackgroundColorClick = { viewModel.navigateToColorPicker("background") },
+                onSymbolColorClick = { viewModel.navigateToColorPicker("symbols") },
+                onGradientClick = { viewModel.navigateToColorPicker("gradient") },
                 modifier = Modifier.padding(bottom = 16.dp) // Отступ от края экрана
             )
         }
@@ -387,6 +390,7 @@ private fun ASCIIPreviewWithGradient(
 
 @Composable
 private fun ControlPanel(
+    viewModel: MainViewModel,
     cameraFacing: CameraFacing,
     captureState: CaptureState,
     currentEffect: EffectType,
@@ -397,7 +401,6 @@ private fun ControlPanel(
     onEffectClick: () -> Unit,
     onEffectSettingsClick: () -> Unit,
     onParamClick: (String) -> Unit,
-    onColorClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -420,7 +423,9 @@ private fun ControlPanel(
             onEffectClick = onEffectClick,
             onEffectSettingsClick = onEffectSettingsClick,
             onParamClick = onParamClick,
-            onColorClick = onColorClick
+            onBackgroundColorClick = { viewModel.navigateToColorPicker("background") },
+            onSymbolColorClick = { viewModel.navigateToColorPicker("symbols") },
+            onGradientClick = { viewModel.navigateToColorPicker("gradient") }
         )
     }
 }
@@ -530,12 +535,20 @@ private fun ColorPickerBlockScreen(
     colorState: ColorState,
     asciiText: String,
     asciiFontSize: Float,
+    selectedColorType: String,
     onBackgroundColorChanged: (Color) -> Unit,
     onSymbolColorChanged: (Color) -> Unit,
     onGradientChanged: (Color, Color) -> Unit,
     onBackClick: () -> Unit
 ) {
-    var selectedTab by remember { mutableStateOf(ColorTab.BACKGROUND) }
+    // Определяем начальный таб на основе переданного типа
+    val initialTab = when (selectedColorType) {
+        "background" -> ColorTab.BACKGROUND
+        "symbols" -> ColorTab.COLOR1
+        "gradient" -> ColorTab.GRADIENT
+        else -> ColorTab.BACKGROUND
+    }
+    var selectedTab by remember { mutableStateOf(initialTab) }
     
     // Полноэкранный режим с ASCII-эффектом и блоком выбора цвета поверх
     Box(
