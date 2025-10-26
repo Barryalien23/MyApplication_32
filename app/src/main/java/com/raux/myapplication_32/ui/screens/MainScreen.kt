@@ -14,6 +14,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -21,6 +22,7 @@ import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -48,6 +50,7 @@ fun MainScreen(
     val colorState by viewModel.colorState.collectAsStateWithLifecycle()
     val asciiResult by viewModel.asciiResult.collectAsStateWithLifecycle()
     val asciiFontSize by viewModel.asciiFontSize.collectAsStateWithLifecycle()
+    val asciiGrid by viewModel.asciiGrid.collectAsStateWithLifecycle()
     val selectedEffectParam by viewModel.selectedEffectParam.collectAsStateWithLifecycle()
     val hapticFeedback = LocalHapticFeedback.current
     
@@ -63,6 +66,7 @@ fun MainScreen(
                     colorState = colorState,
                     asciiResult = asciiResult,
                     asciiFontSize = asciiFontSize,
+                    asciiGrid = asciiGrid,
                     onToggleCamera = { viewModel.toggleCamera() },
                     onCapturePhoto = { viewModel.capturePhoto() },
                     onEffectClick = { 
@@ -166,6 +170,7 @@ private fun MainScreenContent(
     colorState: ColorState,
     asciiResult: String,
     asciiFontSize: Float,
+    asciiGrid: com.raux.myapplication_32.engine.Grid?,
     onToggleCamera: () -> Unit,
     onCapturePhoto: () -> Unit,
     onEffectClick: () -> Unit,
@@ -175,8 +180,21 @@ private fun MainScreenContent(
     modifier: Modifier = Modifier
 ) {
     val configuration = LocalConfiguration.current
-    val screenWidth = configuration.screenWidthDp
-    val screenHeight = configuration.screenHeightDp
+    val density = LocalDensity.current
+    
+    // Получаем размеры в dp
+    val screenWidthDp = configuration.screenWidthDp
+    val screenHeightDp = configuration.screenHeightDp
+    
+    // Конвертируем в пиксели для движка v4.0
+    val screenWidthPx = with(density) { screenWidthDp.dp.toPx().toInt() }
+    val screenHeightPx = with(density) { screenHeightDp.dp.toPx().toInt() }
+    
+    // Вычисляем реальную высоту области ASCII (вычитаем панель настроек)
+    // MainSettingsPanel высота = 144dp (контент) + 16dp (padding) = 160dp
+    val settingsPanelHeightPx = with(density) { 160.dp.toPx().toInt() }
+    val asciiAreaHeightPx = screenHeightPx - settingsPanelHeightPx
+    
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -202,7 +220,8 @@ private fun MainScreenContent(
                         },
                         fontSize = asciiFontSize,
                         modifier = Modifier.fillMaxSize(),
-                        colorState = colorState // Передаем ColorState для градиента
+                        colorState = colorState, // Передаем ColorState для градиента
+                        grid = asciiGrid // Передаем Grid с метриками
                     )
                 } else {
                     // Показываем загрузку
@@ -223,7 +242,8 @@ private fun MainScreenContent(
                     cameraFacing = cameraFacing,
                     modifier = Modifier.fillMaxSize().alpha(0f), // Полностью прозрачная
                     onImageAnalysis = { imageProxy ->
-                        viewModel.processCameraImage(imageProxy, screenWidth, screenHeight, 1f)
+                        // Передаем реальную высоту области ASCII в пикселях (без панели настроек)
+                        viewModel.processCameraImage(imageProxy, screenWidthPx, asciiAreaHeightPx)
                     }
                 )
                 
@@ -259,21 +279,39 @@ fun ASCIIPreview(
     textColor: Color,
     fontSize: Float = 16f,
     modifier: Modifier = Modifier,
-    colorState: ColorState? = null // Добавляем ColorState для градиента
+    colorState: ColorState? = null, // Добавляем ColorState для градиента
+    grid: com.raux.myapplication_32.engine.Grid? = null // Новый параметр с метриками
 ) {
+    val density = LocalDensity.current
+    
+    // Используем метрики из Grid или fallback на fontSize
+    val fontSizeSp = if (grid != null) {
+        with(density) { grid.fontPx.toSp() }
+    } else {
+        fontSize.sp
+    }
+    
+    val lineHeightSp = if (grid != null) {
+        with(density) { grid.lineHeightPx.toSp() }
+    } else {
+        (fontSize * 1.0f).sp
+    }
+    
     Box(
         modifier = modifier
             .fillMaxSize()
             .background(backgroundColor),
-        contentAlignment = Alignment.Center
+        contentAlignment = Alignment.TopStart // Заполняем от верхнего левого угла
     ) {
         // Если textColor - это градиент, используем специальную версию
         if (textColor == Color.Unspecified && colorState != null) {
             // Это означает, что нужно использовать градиент
             ASCIIPreviewWithGradient(
                 asciiText = asciiText,
-                fontSize = fontSize,
-                colorState = colorState
+                fontSizeSp = fontSizeSp,
+                lineHeightSp = lineHeightSp,
+                colorState = colorState,
+                grid = grid
             )
         } else {
             // Обычный сплошной цвет
@@ -281,10 +319,17 @@ fun ASCIIPreview(
                 text = asciiText,
                 color = textColor,
                 fontFamily = FontFamily.Monospace,
-                fontSize = fontSize.sp,
+                fontSize = fontSizeSp,
                 textAlign = TextAlign.Start,
-                lineHeight = (fontSize * 1.1f).sp,
-                maxLines = Int.MAX_VALUE
+                lineHeight = lineHeightSp,
+                softWrap = false,                   // КРИТИЧНО: запрещаем перенос строк!
+                overflow = TextOverflow.Clip,       // Обрезаем если не влезло
+                letterSpacing = 0.sp,               // Без кернинга (движок учитывает это)
+                style = androidx.compose.ui.text.TextStyle(
+                    platformStyle = androidx.compose.ui.text.PlatformTextStyle(
+                        includeFontPadding = false  // КРИТИЧНО: убираем extra padding!
+                    )
+                )
             )
         }
     }
@@ -293,15 +338,17 @@ fun ASCIIPreview(
 @Composable
 private fun ASCIIPreviewWithGradient(
     asciiText: String,
-    fontSize: Float,
-    colorState: ColorState
+    fontSizeSp: androidx.compose.ui.unit.TextUnit,
+    lineHeightSp: androidx.compose.ui.unit.TextUnit,
+    colorState: ColorState,
+    grid: com.raux.myapplication_32.engine.Grid? = null
 ) {
     val lines = asciiText.split("\n")
     val totalLines = lines.size
     
     Column(
         modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.Center
+        verticalArrangement = Arrangement.Top // Заполняем сверху
     ) {
         lines.forEachIndexed { index, line ->
             // Вычисляем цвет для этой строки в градиенте
@@ -322,9 +369,17 @@ private fun ASCIIPreviewWithGradient(
                 text = line,
                 color = lineColor,
                 fontFamily = FontFamily.Monospace,
-                fontSize = fontSize.sp,
+                fontSize = fontSizeSp,
                 textAlign = TextAlign.Start,
-                lineHeight = (fontSize * 1.1f).sp
+                lineHeight = lineHeightSp,
+                softWrap = false,                   // КРИТИЧНО: запрещаем перенос строк!
+                overflow = TextOverflow.Clip,       // Обрезаем если не влезло
+                letterSpacing = 0.sp,               // Без кернинга (движок учитывает это)
+                style = androidx.compose.ui.text.TextStyle(
+                    platformStyle = androidx.compose.ui.text.PlatformTextStyle(
+                        includeFontPadding = false  // КРИТИЧНО: убираем extra padding!
+                    )
+                )
             )
         }
     }

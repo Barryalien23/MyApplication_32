@@ -19,7 +19,8 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.raux.myapplication_32.data.models.*
-import com.raux.myapplication_32.engine.ASCIIEngine
+import com.raux.myapplication_32.engine.ASCIIEngineV2
+import com.raux.myapplication_32.engine.Grid
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -40,11 +41,13 @@ class MainViewModel(
     private val context: Context
 ) : ViewModel() {
     
-    private val asciiEngine = ASCIIEngine()
-    
-    // Размер шрифта для ASCII эффекта
-    private val _asciiFontSize = MutableStateFlow(16f)
+    // Размер шрифта для ASCII эффекта (теперь в px, из Grid)
+    private val _asciiFontSize = MutableStateFlow(24f)
     val asciiFontSize: StateFlow<Float> = _asciiFontSize.asStateFlow()
+    
+    // Метрики сетки (lineHeight в px)
+    private val _asciiGrid = MutableStateFlow<Grid?>(null)
+    val asciiGrid: StateFlow<Grid?> = _asciiGrid.asStateFlow()
     
     // Состояние камеры
     private val _cameraFacing = MutableStateFlow(CameraFacing.BACK)
@@ -96,11 +99,28 @@ class MainViewModel(
                 val testBitmap = createTestBitmap()
                 val effect = _currentEffect.value
                 val params = _effectParams.value
-                val (asciiText, optimalFontSize) = asciiEngine.convertToASCII(testBitmap, effect, params, 300, 200, 1f)
-                _asciiResult.value = asciiText
-                _asciiFontSize.value = optimalFontSize
+                
+                // Используем новый движок V2
+                val result = ASCIIEngineV2.renderText(
+                    source = testBitmap,
+                    effectType = effect,
+                    params = params,
+                    screenWidthPx = 1080,  // примерное значение, будет обновлено из UI
+                    screenHeightPx = 1920,
+                    baseFontPx = 24f,
+                    maxCells = 80_000,
+                    dither = true,
+                    gamma = 1.25f
+                )
+                
+                _asciiResult.value = result.ascii
+                _asciiFontSize.value = result.grid.fontPx
+                _asciiGrid.value = result.grid
+                
+                android.util.Log.d("MainViewModel", "TestASCII: Grid ${result.grid.cols}x${result.grid.rows}, font=${result.grid.fontPx}px, clamped=${result.grid.clamped}")
             } catch (e: Exception) {
                 _asciiResult.value = "ASCII Engine Error"
+                android.util.Log.e("MainViewModel", "TestASCII error", e)
             }
         }
     }
@@ -204,26 +224,36 @@ class MainViewModel(
     /**
      * Обработка текущего изображения
      */
-    private fun processCurrentImage() {
+    private fun processCurrentImage(screenWidthPx: Int = 1080, screenHeightPx: Int = 1920) {
         val image = _currentImage.value ?: return
         val effect = _currentEffect.value
         val params = _effectParams.value
         
         viewModelScope.launch {
             try {
-                // Масштабируем изображение для оптимизации
-                val scaledImage = scaleBitmapForASCII(image, maxWidth = 200, maxHeight = 150)
+                // Новый движок не требует предварительного масштабирования
+                // Он сам сэмплирует через интегральное изображение
+                val result = ASCIIEngineV2.renderText(
+                    source = image,
+                    effectType = effect,
+                    params = params,
+                    screenWidthPx = screenWidthPx,
+                    screenHeightPx = screenHeightPx,
+                    baseFontPx = 24f,
+                    maxCells = 80_000,
+                    dither = true,
+                    gamma = 1.25f
+                )
                 
-                val (asciiText, optimalFontSize) = asciiEngine.convertToASCII(scaledImage, effect, params, 300, 200, 1f)
-                _asciiResult.value = asciiText
-                _asciiFontSize.value = optimalFontSize
+                _asciiResult.value = result.ascii
+                _asciiFontSize.value = result.grid.fontPx
+                _asciiGrid.value = result.grid
                 
-                // Освобождаем память
-                if (scaledImage != image) {
-                    scaledImage.recycle()
+                if (result.grid.clamped) {
+                    android.util.Log.w("MainViewModel", "⚠️ Grid clamped! Consider reducing CELL parameter")
                 }
             } catch (e: Exception) {
-                // Обработка ошибок
+                android.util.Log.e("MainViewModel", "Error processing current image", e)
             }
         }
     }
@@ -231,7 +261,7 @@ class MainViewModel(
     /**
      * Масштабирует изображение для оптимизации производительности ASCII
      */
-    private fun scaleBitmapForASCII(bitmap: Bitmap, maxWidth: Int = 200, maxHeight: Int = 150): Bitmap {
+    private fun scaleBitmapForASCII(bitmap: Bitmap, maxWidth: Int = 400, maxHeight: Int = 300): Bitmap {
         val originalWidth = bitmap.width
         val originalHeight = bitmap.height
         
@@ -256,8 +286,10 @@ class MainViewModel(
     
     /**
      * Обработка изображения с камеры в реальном времени
+     * @param screenWidthPx ширина экрана в пикселях
+     * @param screenHeightPx высота экрана в пикселях
      */
-    fun processCameraImage(imageProxy: ImageProxy, screenWidth: Int = 300, screenHeight: Int = 200, fontSize: Float = 1f) {
+    fun processCameraImage(imageProxy: ImageProxy, screenWidthPx: Int, screenHeightPx: Int) {
         viewModelScope.launch {
             try {
                 val bitmap = imageProxyToBitmap(imageProxy)
@@ -265,12 +297,30 @@ class MainViewModel(
                     val effect = _currentEffect.value
                     val params = _effectParams.value
                     
-                    val (asciiText, optimalFontSize) = asciiEngine.convertToASCII(bitmap, effect, params, screenWidth, screenHeight, fontSize)
-                    _asciiResult.value = asciiText
-                    _asciiFontSize.value = optimalFontSize
+                    // Используем новый движок V2 с реальными размерами экрана в PX
+                    val result = ASCIIEngineV2.renderText(
+                        source = bitmap,
+                        effectType = effect,
+                        params = params,
+                        screenWidthPx = screenWidthPx,
+                        screenHeightPx = screenHeightPx,
+                        baseFontPx = 24f,
+                        maxCells = 80_000,
+                        dither = true,
+                        gamma = 1.25f
+                    )
+                    
+                    _asciiResult.value = result.ascii
+                    _asciiFontSize.value = result.grid.fontPx
+                    _asciiGrid.value = result.grid
+                    
+                    // Предупреждение если упёрлись в лимит
+                    if (result.grid.clamped) {
+                        android.util.Log.w("MainViewModel", "⚠️ Grid clamped! CELL=${params.cell}% → Grid ${result.grid.cols}x${result.grid.rows}")
+                    }
                 }
             } catch (e: Exception) {
-                // Обработка ошибок
+                android.util.Log.e("MainViewModel", "Error processing camera image", e)
             }
         }
     }    
@@ -311,9 +361,9 @@ class MainViewModel(
             // Освобождаем память
             bitmap.recycle()
             
-            // МАСШТАБИРУЕМ ИЗОБРАЖЕНИЕ ДЛЯ ASCII - это ключевая оптимизация!
-            val maxWidth = 300  // Максимальная ширина для ASCII
-            val maxHeight = 225 // Максимальная высота для ASCII
+            // МАСШТАБИРУЕМ ИЗОБРАЖЕНИЕ ДЛЯ ASCII - увеличено для лучшей детализации!
+            val maxWidth = 500  // Максимальная ширина для ASCII (было 300)
+            val maxHeight = 375 // Максимальная высота для ASCII (было 225)
 
             val originalWidth = rotatedBitmap.width
             val originalHeight = rotatedBitmap.height
