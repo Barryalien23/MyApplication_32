@@ -2,6 +2,7 @@ package com.raux.myapplication_32.viewmodel
 
 import android.content.ContentValues
 import android.content.Context
+import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
@@ -11,8 +12,12 @@ import android.graphics.Paint
 import android.graphics.Rect
 import android.graphics.Typeface
 import android.graphics.YuvImage
+import android.net.Uri
 import android.os.Environment
 import android.provider.MediaStore
+import androidx.activity.ComponentActivity
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.ImageProxy
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
@@ -84,6 +89,13 @@ class MainViewModel(
     // Выбранный параметр для настроек эффекта
     private val _selectedEffectParam = MutableStateFlow<String?>(null)
     val selectedEffectParam: StateFlow<String?> = _selectedEffectParam.asStateFlow()
+    
+    // Состояние для загруженного фото
+    private val _isPhotoMode = MutableStateFlow(false)
+    val isPhotoMode: StateFlow<Boolean> = _isPhotoMode.asStateFlow()
+    
+    private val _loadedPhotoBitmap = MutableStateFlow<Bitmap?>(null)
+    val loadedPhotoBitmap: StateFlow<Bitmap?> = _loadedPhotoBitmap.asStateFlow()
     
     init {
         // Инициализируем с тестовым ASCII
@@ -167,7 +179,13 @@ class MainViewModel(
      */
     fun selectEffect(effect: EffectType) {
         _currentEffect.value = effect
-        processCurrentImage()
+        
+        // Если мы в режиме фото, обрабатываем загруженное изображение
+        if (_isPhotoMode.value) {
+            _loadedPhotoBitmap.value?.let { processLoadedImage(it) }
+        } else {
+            processCurrentImage()
+        }
     }
     
     /**
@@ -183,7 +201,13 @@ class MainViewModel(
      */
     fun updateEffectParams(params: EffectParams) {
         _effectParams.value = params
-        processCurrentImage()
+        
+        // Если мы в режиме фото, обрабатываем загруженное изображение
+        if (_isPhotoMode.value) {
+            _loadedPhotoBitmap.value?.let { processLoadedImage(it) }
+        } else {
+            processCurrentImage()
+        }
     }
     
     /**
@@ -290,6 +314,11 @@ class MainViewModel(
      * @param screenHeightPx высота экрана в пикселях
      */
     fun processCameraImage(imageProxy: ImageProxy, screenWidthPx: Int, screenHeightPx: Int) {
+        // Не обрабатываем камеру в режиме фото
+        if (_isPhotoMode.value) {
+            return
+        }
+        
         viewModelScope.launch {
             try {
                 val bitmap = imageProxyToBitmap(imageProxy)
@@ -535,6 +564,130 @@ class MainViewModel(
     fun navigateBack() {
         _currentScreen.value = Screen.MAIN
         _selectedEffectParam.value = null // Reset selected param on back
+    }
+    
+    /**
+     * Загрузка изображения из галереи
+     */
+    fun loadImageFromGallery(uri: Uri) {
+        viewModelScope.launch {
+            try {
+                val inputStream = context.contentResolver.openInputStream(uri)
+                val bitmap = BitmapFactory.decodeStream(inputStream)
+                inputStream?.close()
+                
+                if (bitmap != null) {
+                    // Масштабируем изображение для ASCII обработки
+                    val scaledBitmap = scaleBitmapForASCII(bitmap)
+                    
+                    // Переходим в режим фото на главном потоке
+                    withContext(Dispatchers.Main) {
+                        _isPhotoMode.value = true
+                        _loadedPhotoBitmap.value = scaledBitmap
+                    }
+                    
+                    // Обрабатываем загруженное изображение
+                    processLoadedImage(scaledBitmap)
+                    
+                    android.util.Log.d("MainViewModel", "Image loaded successfully, photoMode=${_isPhotoMode.value}")
+                } else {
+                    android.util.Log.e("MainViewModel", "Failed to decode image from URI: $uri")
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("MainViewModel", "Error loading image from gallery", e)
+            }
+        }
+    }
+    
+    /**
+     * Обработка загруженного изображения ASCII движком
+     */
+    private fun processLoadedImage(bitmap: Bitmap) {
+        viewModelScope.launch {
+            try {
+                val effect = _currentEffect.value
+                val params = _effectParams.value
+                
+                // Используем размеры экрана по умолчанию
+                val screenWidthPx = 1080
+                val screenHeightPx = 1920
+                
+                // Обрабатываем движком V2
+                val result = ASCIIEngineV2.renderText(
+                    source = bitmap,
+                    effectType = effect,
+                    params = params,
+                    screenWidthPx = screenWidthPx,
+                    screenHeightPx = screenHeightPx,
+                    baseFontPx = 24f,
+                    maxCells = 80_000,
+                    dither = true,
+                    gamma = 1.25f
+                )
+                
+                // Обновляем UI в Main потоке
+                withContext(Dispatchers.Main) {
+                    _asciiResult.value = result.ascii
+                    _asciiFontSize.value = result.grid.fontPx
+                    _asciiGrid.value = result.grid
+                }
+                
+                android.util.Log.d("MainViewModel", "Processed loaded image: Grid ${result.grid.cols}x${result.grid.rows}")
+            } catch (e: Exception) {
+                android.util.Log.e("MainViewModel", "Error processing loaded image", e)
+                withContext(Dispatchers.Main) {
+                    _asciiResult.value = "Error processing image"
+                }
+            }
+        }
+    }
+    
+    /**
+     * Сохранение обработанного изображения в галерею
+     */
+    fun saveProcessedImage() {
+        _captureState.value = CaptureState.Capturing
+        viewModelScope.launch {
+            try {
+                val asciiText = _asciiResult.value
+                val colorState = _colorState.value
+                val fontSize = _asciiFontSize.value
+                
+                val imageUri = saveASCIIToGallery(asciiText, colorState, fontSize)
+                if (imageUri != null) {
+                    _captureState.value = CaptureState.Success(imageUri)
+                    
+                    // Возвращаемся к обычному режиму камеры после сохранения
+                    exitPhotoMode()
+                } else {
+                    _captureState.value = CaptureState.Error("Failed to save processed image")
+                }
+            } catch (e: Exception) {
+                _captureState.value = CaptureState.Error(e.message ?: "Unknown error occurred")
+            }
+        }
+    }
+    
+    /**
+     * Выход из режима загруженного фото обратно к камере
+     */
+    fun exitPhotoMode() {
+        _isPhotoMode.value = false
+        _loadedPhotoBitmap.value?.recycle()
+        _loadedPhotoBitmap.value = null
+        
+        // Сбрасываем состояние захвата через небольшую задержку
+        viewModelScope.launch {
+            kotlinx.coroutines.delay(1000)
+            _captureState.value = CaptureState.Idle
+        }
+    }
+    
+    /**
+     * Переход к обычному режиму камеры (для кнопки отмены)
+     */
+    fun returnToCameraMode() {
+        exitPhotoMode()
     }
 }
 

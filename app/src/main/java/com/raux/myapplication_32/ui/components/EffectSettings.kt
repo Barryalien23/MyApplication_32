@@ -68,8 +68,11 @@ fun EffectSettingsScreen(
     // Кнопки камеры
     cameraFacing: CameraFacing,
     captureState: CaptureState,
+    isPhotoMode: Boolean = false,
     onToggleCamera: () -> Unit,
     onCapturePhoto: () -> Unit,
+    onLoadPhoto: () -> Unit = {},
+    onSaveProcessedImage: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     // Определяем активный параметр
@@ -95,8 +98,11 @@ fun EffectSettingsScreen(
         CameraButtonsBlock(
             cameraFacing = cameraFacing,
             captureState = captureState,
+            isPhotoMode = isPhotoMode,
             onToggleCamera = onToggleCamera,
             onCapturePhoto = onCapturePhoto,
+            onLoadPhoto = onLoadPhoto,
+            onSaveProcessedImage = onSaveProcessedImage,
             modifier = Modifier.align(Alignment.BottomCenter)
         )
         

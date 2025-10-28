@@ -24,8 +24,10 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.vectorResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -302,6 +304,105 @@ fun ColorButton(
                 textAlign = TextAlign.Center,
                 maxLines = 2
             )
+        }
+    }
+}
+
+/**
+ * Кнопка сохранения обработанного изображения
+ * Дизайн идентичен CaptureButton - белая кнопка с черным текстом "SAVE IMAGE"
+ */
+@Composable
+fun SaveImageButton(
+    onClick: () -> Unit,
+    isProcessing: Boolean = false,
+    modifier: Modifier = Modifier
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val hapticFeedback = LocalHapticFeedback.current
+    
+    // Анимация отступа при нажатии (4dp -> 6dp для эффекта сжатия)
+    val padding by animateFloatAsState(
+        targetValue = if (isPressed) 6f else 4f,
+        animationSpec = tween(
+            durationMillis = 100, // Очень быстрая анимация
+            easing = FastOutSlowInEasing
+        ),
+        label = "padding"
+    )
+    
+    Box(
+        modifier = modifier
+            .width(120.dp)
+            .height(60.dp)
+            .shadow(
+                elevation = 8.dp, // Тень согласно Figma: 0px_0px_8px_0px_rgba(0,0,0,0.08)
+                shape = RoundedCornerShape(20.dp),
+                ambientColor = Color.Black.copy(alpha = 0.08f),
+                spotColor = Color.Black.copy(alpha = 0.08f)
+            )
+            .clip(RoundedCornerShape(20.dp)) // Радиус 20dp согласно Figma
+            .border(
+                width = 2.dp, // Белая обводка 2dp
+                color = Color(0x66FFFFFF), // rgba(255,255,255,0.4) - белая с прозрачностью 40%
+                shape = RoundedCornerShape(20.dp)
+            )
+            .background(Color(0x59000000)) // Черный фон с прозрачностью 35%
+            .clickable(
+                interactionSource = interactionSource,
+                indication = ripple(
+                    bounded = true,
+                    radius = 40.dp,
+                    color = Color.White.copy(alpha = 0.3f)
+                ),
+                enabled = !isProcessing
+            ) { 
+                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                onClick() 
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        // Белый фон внутри с анимированным отступом (идентично CaptureButton)
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding.dp) // Анимированный отступ: 4dp -> 6dp
+                .clip(RoundedCornerShape(16.dp)) // Радиус 16dp внутри
+                .background(AppColors.White), // Белый фон как у CaptureButton
+            contentAlignment = Alignment.Center 
+        ) {
+            if (isProcessing) {
+                // Показываем индикатор загрузки
+                Text(
+                    text = "...",
+                    style = AppTypography.head1,
+                    color = AppColors.Black,
+                    textAlign = TextAlign.Center
+                )
+            } else {
+                // Показываем иконку галочки и текст "SAVE IMAGE"
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Icon(
+                        imageVector = ImageVector.vectorResource(com.raux.myapplication_32.R.drawable.ic_save),
+                        contentDescription = "Save Image",
+                        modifier = Modifier.size(14.dp),
+                        tint = AppColors.Black
+                    )
+                    Text(
+                        text = "SAVE IMAGE",
+                        style = AppTypography.body1.copy(
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold
+                        ),
+                        color = AppColors.Black,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
         }
     }
 }

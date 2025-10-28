@@ -52,7 +52,13 @@ fun MainScreen(
     val asciiFontSize by viewModel.asciiFontSize.collectAsStateWithLifecycle()
     val asciiGrid by viewModel.asciiGrid.collectAsStateWithLifecycle()
     val selectedEffectParam by viewModel.selectedEffectParam.collectAsStateWithLifecycle()
+    val isPhotoMode by viewModel.isPhotoMode.collectAsStateWithLifecycle()
     val hapticFeedback = LocalHapticFeedback.current
+    
+    // Photo picker launcher
+    val photoPickerLauncher = rememberPhotoPickerLauncher { uri ->
+        viewModel.loadImageFromGallery(uri)
+    }
     
     BasicCameraPermissionHandler {
         when (currentScreen) {
@@ -67,8 +73,11 @@ fun MainScreen(
                     asciiResult = asciiResult,
                     asciiFontSize = asciiFontSize,
                     asciiGrid = asciiGrid,
+                    isPhotoMode = isPhotoMode,
                     onToggleCamera = { viewModel.toggleCamera() },
                     onCapturePhoto = { viewModel.capturePhoto() },
+                    onLoadPhoto = { photoPickerLauncher.launch("image/*") },
+                    onSaveProcessedImage = { viewModel.saveProcessedImage() },
                     onEffectClick = { 
                         hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
                         viewModel.navigateTo(Screen.EFFECT_PICKER) 
@@ -105,8 +114,11 @@ fun MainScreen(
                     // Кнопки камеры
                     cameraFacing = cameraFacing,
                     captureState = captureState,
+                    isPhotoMode = isPhotoMode,
                     onToggleCamera = { viewModel.toggleCamera() },
-                    onCapturePhoto = { viewModel.capturePhoto() }
+                    onCapturePhoto = { viewModel.capturePhoto() },
+                    onLoadPhoto = { photoPickerLauncher.launch("image/*") },
+                    onSaveProcessedImage = { viewModel.saveProcessedImage() }
                 )
             }
                 Screen.EFFECT_SETTINGS -> {
@@ -141,8 +153,11 @@ fun MainScreen(
                         // Кнопки камеры
                         cameraFacing = cameraFacing,
                         captureState = captureState,
+                        isPhotoMode = isPhotoMode,
                         onToggleCamera = { viewModel.toggleCamera() },
-                        onCapturePhoto = { viewModel.capturePhoto() }
+                        onCapturePhoto = { viewModel.capturePhoto() },
+                        onLoadPhoto = { photoPickerLauncher.launch("image/*") },
+                        onSaveProcessedImage = { viewModel.saveProcessedImage() }
                     )
                 }
                     Screen.COLOR_PICKER -> {
@@ -172,8 +187,11 @@ private fun MainScreenContent(
     asciiResult: String,
     asciiFontSize: Float,
     asciiGrid: com.raux.myapplication_32.engine.Grid?,
+    isPhotoMode: Boolean,
     onToggleCamera: () -> Unit,
     onCapturePhoto: () -> Unit,
+    onLoadPhoto: () -> Unit,
+    onSaveProcessedImage: () -> Unit,
     onEffectClick: () -> Unit,
     onEffectSettingsClick: () -> Unit,
     onParamClick: (String) -> Unit,
@@ -238,22 +256,27 @@ private fun MainScreenContent(
                     }
                 }
                 
-                // Скрытая камера для обработки изображений (невидимая)
-                CameraPreview(
-                    cameraFacing = cameraFacing,
-                    modifier = Modifier.fillMaxSize().alpha(0f), // Полностью прозрачная
-                    onImageAnalysis = { imageProxy ->
-                        // Передаем реальную высоту области ASCII в пикселях (без панели настроек)
-                        viewModel.processCameraImage(imageProxy, screenWidthPx, asciiAreaHeightPx)
-                    }
-                )
+                // Скрытая камера для обработки изображений (только в режиме камеры)
+                if (!isPhotoMode) {
+                    CameraPreview(
+                        cameraFacing = cameraFacing,
+                        modifier = Modifier.fillMaxSize().alpha(0f), // Полностью прозрачная
+                        onImageAnalysis = { imageProxy ->
+                            // Передаем реальную высоту области ASCII в пикселях (без панели настроек)
+                            viewModel.processCameraImage(imageProxy, screenWidthPx, asciiAreaHeightPx)
+                        }
+                    )
+                }
                 
                 // Кнопки камеры поверх ASCII эффекта (8dp от MainSettingsPanel)
                 CameraButtonsBlock(
                     cameraFacing = cameraFacing,
                     captureState = captureState,
+                    isPhotoMode = isPhotoMode,
                     onToggleCamera = onToggleCamera,
                     onCapturePhoto = onCapturePhoto,
+                    onLoadPhoto = onLoadPhoto,
+                    onSaveProcessedImage = onSaveProcessedImage,
                     modifier = Modifier.align(Alignment.BottomCenter)
                 )
             }
@@ -444,8 +467,11 @@ private fun EffectPickerScreen(
     // Кнопки камеры
     cameraFacing: CameraFacing,
     captureState: CaptureState,
+    isPhotoMode: Boolean = false,
     onToggleCamera: () -> Unit,
-    onCapturePhoto: () -> Unit
+    onCapturePhoto: () -> Unit,
+    onLoadPhoto: () -> Unit = {},
+    onSaveProcessedImage: () -> Unit = {}
 ) {
     // Полноэкранный режим с ASCII-эффектом и выбором эффектов поверх
     Box(
@@ -464,8 +490,11 @@ private fun EffectPickerScreen(
         CameraButtonsBlock(
             cameraFacing = cameraFacing,
             captureState = captureState,
+            isPhotoMode = isPhotoMode,
             onToggleCamera = onToggleCamera,
             onCapturePhoto = onCapturePhoto,
+            onLoadPhoto = onLoadPhoto,
+            onSaveProcessedImage = onSaveProcessedImage,
             modifier = Modifier.align(Alignment.BottomCenter)
         )
         

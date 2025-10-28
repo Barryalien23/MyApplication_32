@@ -19,8 +19,11 @@ import com.raux.myapplication_32.data.models.CaptureState
 fun CameraButtonsBlock(
     cameraFacing: CameraFacing,
     captureState: CaptureState,
+    isPhotoMode: Boolean = false,
     onToggleCamera: () -> Unit,
     onCapturePhoto: () -> Unit,
+    onLoadPhoto: () -> Unit = {},
+    onSaveProcessedImage: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -33,19 +36,33 @@ fun CameraButtonsBlock(
         // Кнопка загрузки из галереи
         FunctionButton(
             icon = ImageVector.vectorResource(R.drawable.ic_upload),
-            onClick = { /* TODO: Реализовать загрузку из галереи */ }
+            onClick = onLoadPhoto
         )
         
-        // Кнопка захвата фото
-        CaptureButton(
-            onClick = onCapturePhoto,
-            isCapturing = captureState is CaptureState.Capturing
-        )
+        // Кнопка захвата фото или сохранения обработанного изображения
+        if (isPhotoMode) {
+            // В режиме фото показываем кнопку "Save Image"
+            SaveImageButton(
+                onClick = onSaveProcessedImage,
+                isProcessing = captureState is CaptureState.Capturing
+            )
+        } else {
+            // В обычном режиме показываем кнопку захвата
+            CaptureButton(
+                onClick = onCapturePhoto,
+                isCapturing = captureState is CaptureState.Capturing
+            )
+        }
         
-        // Кнопка переключения камеры
-        FunctionButton(
-            icon = ImageVector.vectorResource(R.drawable.ic_camera_flip),
-            onClick = onToggleCamera
-        )
+        // Кнопка переключения камеры (скрываем в режиме фото)
+        if (!isPhotoMode) {
+            FunctionButton(
+                icon = ImageVector.vectorResource(R.drawable.ic_camera_flip),
+                onClick = onToggleCamera
+            )
+        } else {
+            // Пустое пространство для сохранения симметрии
+            Spacer(modifier = Modifier.size(56.dp))
+        }
     }
 }

@@ -15,6 +15,9 @@ object AppColors {
     val White20 = Color(0x33FFFFFF) // White с 20% прозрачностью
     val White40 = Color(0x66FFFFFF) // White с 40% прозрачностью
     
+    // Акцентные цвета
+    val Green = Color(0xFF4CAF50) // Зеленый для кнопки сохранения
+    
     // Системные цвета
     val Surface = MainGrey
     val OnSurface = White
